@@ -1,0 +1,32 @@
+# Dependencies (reinstalled inside image)
+node_modules/
+server/node_modules/
+
+# Build artifacts
+dist/
+server/dist/
+
+# Database (never bake real data into an image)
+data/
+
+# Secrets
+.env
+.env.*
+server/.env
+server/.env.*
+
+# Version control
+.git/
+.gitignore
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+
+# Logs
+*.log
