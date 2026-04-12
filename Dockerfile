@@ -27,6 +27,9 @@ COPY server/src ./src
 
 RUN npm run build
 
+# Reinstall only production dependencies to keep the final image lean
+RUN npm ci --omit=dev
+
 # ── Stage 3: production image ──────────────────────────────────────────
 FROM node:20-alpine
 WORKDIR /app
