@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Default accent palette (sky). Overridden at runtime by applyAccentColor(). */
+:root {
+  --brand-50: 240 249 255;
+  --brand-100: 224 242 254;
+  --brand-200: 186 230 253;
+  --brand-300: 125 211 252;
+  --brand-400: 56 189 248;
+  --brand-500: 14 165 233;
+  --brand-600: 2 132 199;
+  --brand-700: 3 105 161;
+  --brand-800: 7 89 133;
+  --brand-900: 12 74 110;
+  --brand-950: 8 47 73;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply antialiased text-slate-900 dark:text-zinc-100 dark:bg-zinc-950;
+  }
+
+  /* Number input spinners — hide on mobile for cleaner look */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}

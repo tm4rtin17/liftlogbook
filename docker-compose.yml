@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3001}:3001"
+    volumes:
+      - ./data:/app/data
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in a .env file (see README)}
+      NODE_ENV: production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
