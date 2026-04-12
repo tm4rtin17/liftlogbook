@@ -4,7 +4,7 @@ services:
     ports:
       - "${PORT:-3001}:3001"
     volumes:
-      - ./data:/app/data
+      - liftlogbook_data:/app/data
     environment:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in a .env file (see README)}
       NODE_ENV: production
@@ -15,3 +15,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+volumes:
+  liftlogbook_data:
