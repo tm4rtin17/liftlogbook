@@ -24,6 +24,7 @@ function AppShell() {
     addCustomExercise,
     removeCustomExercise,
     updateSettings,
+    importBackup,
   } = useStore()
 
   if (loading) {
@@ -105,9 +106,11 @@ function AppShell() {
               <Settings
                 settings={settings}
                 exercises={exercises}
+                workouts={workouts}
                 onUpdateSettings={updateSettings}
                 onAddCustomExercise={addCustomExercise}
                 onDeleteCustomExercise={removeCustomExercise}
+                onImportBackup={importBackup}
               />
             </section>
           )}
