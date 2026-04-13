@@ -1,4 +1,4 @@
-# LiftLogbook
+# 🏋️ LiftLogbook
 
 A self-hosted web app for tracking weight-lifting workouts. Log exercises, sets, reps, and weight — then review your history and visualize progress over time. Each user's data is kept fully isolated on your own server.
 
@@ -6,7 +6,10 @@ A self-hosted web app for tracking weight-lifting workouts. Log exercises, sets,
 
 - **Workout logging** — build sessions from a library of 60+ built-in exercises, add custom exercises, and log sets with weight and reps
 - **History** — browse past workouts by month, expand for full set details, edit or delete any entry
+- **Activity heatmap** — 52-week grid in the History view showing workout frequency and volume intensity at a glance
 - **Analytics** — weekly volume charts by muscle group or individual exercise, all-time breakdowns, and personal bests
+- **Personal Records** — dedicated PRs page showing all-time bests per exercise: heaviest weight, most reps, estimated 1RM (Epley formula), and best session volume
+- **Export / Import / Backup** — export your data as JSON (full backup) or CSV (spreadsheet-friendly), and import a JSON backup to restore or migrate data
 - **Multi-user** — each account has fully isolated data; register as many users as you like
 - **Per-user settings** — weight unit (lbs / kg) and accent color theme stored per account
 - **Dark mode** — follows system preference, togglable at any time
@@ -41,7 +44,7 @@ The app is available at `http://localhost:5173`. API requests are proxied to the
 
 > **Note:** If you change `tailwind.config.js`, restart the Vite dev server for the change to take effect (`Ctrl+C` then `npm run dev` again).
 
-## Docker (recommended)
+## 🐳 Docker (recommended)
 
 The easiest way to run LiftLogbook is with Docker Compose.
 
@@ -127,19 +130,28 @@ The app is available at `http://localhost:3001` (or whatever `PORT` is set to in
 liftlogbook/
 ├── src/                    # Frontend (React)
 │   ├── api/client.ts       # Fetch wrapper with JWT injection
-│   ├── components/         # UI components (WorkoutLogger, History, Analytics, …)
+│   ├── components/         # UI components
+│   │   ├── Analytics.tsx       # Charts & volume analysis
+│   │   ├── ExercisePicker.tsx  # Exercise selection modal
+│   │   ├── History.tsx         # Past workouts + heatmap
+│   │   ├── Navigation.tsx      # Tab-based navigation bar
+│   │   ├── PersonalRecords.tsx # All-time bests by exercise
+│   │   ├── Settings.tsx        # User settings, import/export
+│   │   ├── WorkoutHeatmap.tsx  # 52-week activity grid
+│   │   ├── WorkoutLogger.tsx   # Add/edit workout form
+│   │   └── ui/                 # Reusable: Button, Input, Modal, Badge
 │   ├── contexts/           # AuthContext, ThemeContext
 │   ├── data/               # Built-in exercise list, accent color palettes
 │   ├── hooks/useStore.ts   # All data state — fetches from API, exposes actions
 │   ├── screens/            # Auth screen
 │   ├── types/              # Shared TypeScript types
-│   └── utils/analytics.ts  # Volume calculations and weekly aggregation
+│   └── utils/              # Volume calculations, weekly aggregation, storage helpers
 ├── server/
 │   └── src/
 │       ├── db.ts           # SQLite schema (users, workouts, exercises, settings)
 │       ├── index.ts        # Express app entry point
 │       ├── middleware/     # JWT auth middleware
-│       └── routes/         # auth, workouts, exercises, settings
+│       └── routes/         # auth, workouts, exercises, settings, backup
 ├── public/
 └── data/                   # SQLite database files (gitignored)
 ```
