@@ -6,6 +6,7 @@ import { MuscleGroupBadge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
 import { WorkoutLogger } from './WorkoutLogger'
+import { WorkoutHeatmap } from './WorkoutHeatmap'
 
 interface Props {
   workouts: Workout[]
@@ -54,6 +55,8 @@ export function History({
 
   return (
     <div className="flex flex-col gap-6">
+      <WorkoutHeatmap workouts={workouts} weightUnit={weightUnit} />
+
       {Array.from(byMonth.entries()).map(([month, mWorkouts]) => (
         <div key={month}>
           <h2 className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
