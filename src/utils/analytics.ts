@@ -1,5 +1,5 @@
 import { startOfWeek, format, parseISO, isWithinInterval, subWeeks } from 'date-fns'
-import { Exercise, MuscleGroup, Workout } from '../types'
+import { Exercise, MuscleGroup, Workout, WorkoutSet } from '../types'
 
 const KG_TO_LBS = 2.20462
 
@@ -13,6 +13,16 @@ export function toStoredLbs(value: number, unit: 'lbs' | 'kg'): number {
   return value
 }
 
+/**
+ * Returns the effective weight (lbs) for a set.
+ * For bodyweight sets: userBodyweightLbs + additional weight stored in set.weight.
+ * Falls back to just the additional weight if user bodyweight is not set.
+ */
+export function effectiveSetWeight(set: WorkoutSet, userBodyweightLbs = 0): number {
+  if (set.isBodyweight) return userBodyweightLbs + set.weight
+  return set.weight
+}
+
 /** Volume for a single set = weight (lbs) × reps */
 export function setVolume(weight: number, reps: number): number {
   return weight * reps
@@ -21,19 +31,20 @@ export function setVolume(weight: number, reps: number): number {
 /** Total volume across all sets in a workout for a given exercise */
 export function exerciseVolume(
   workout: Workout,
-  exerciseId: string
+  exerciseId: string,
+  userBodyweightLbs = 0
 ): number {
   return workout.exercises
     .filter((we) => we.exerciseId === exerciseId)
     .flatMap((we) => we.sets)
-    .reduce((sum, s) => sum + setVolume(s.weight, s.reps), 0)
+    .reduce((sum, s) => sum + setVolume(effectiveSetWeight(s, userBodyweightLbs), s.reps), 0)
 }
 
 /** Total volume across the entire workout */
-export function workoutTotalVolume(workout: Workout): number {
+export function workoutTotalVolume(workout: Workout, userBodyweightLbs = 0): number {
   return workout.exercises
     .flatMap((we) => we.sets)
-    .reduce((sum, s) => sum + setVolume(s.weight, s.reps), 0)
+    .reduce((sum, s) => sum + setVolume(effectiveSetWeight(s, userBodyweightLbs), s.reps), 0)
 }
 
 export interface WeeklyVolume {
@@ -48,10 +59,11 @@ export interface WeeklyVolume {
 export function weeklyVolumeForExercise(
   workouts: Workout[],
   exerciseId: string,
-  weeks = 12
+  weeks = 12,
+  userBodyweightLbs = 0
 ): WeeklyVolume[] {
   return buildWeeklyBuckets(workouts, weeks, (workout) =>
-    exerciseVolume(workout, exerciseId)
+    exerciseVolume(workout, exerciseId, userBodyweightLbs)
   )
 }
 
@@ -60,12 +72,13 @@ export function weeklyVolumeForExercise(
  */
 export function weeklyVolumeForAllMuscleGroups(
   workouts: Workout[],
-  weeks = 12
+  weeks = 12,
+  userBodyweightLbs = 0
 ): WeeklyVolume[] {
   return buildWeeklyBuckets(workouts, weeks, (workout) =>
     workout.exercises
       .flatMap((we) => we.sets)
-      .reduce((sum, s) => sum + setVolume(s.weight, s.reps), 0)
+      .reduce((sum, s) => sum + setVolume(effectiveSetWeight(s, userBodyweightLbs), s.reps), 0)
   )
 }
 
@@ -76,7 +89,8 @@ export function weeklyVolumeForMuscleGroup(
   workouts: Workout[],
   muscleGroup: MuscleGroup,
   exercises: Exercise[],
-  weeks = 12
+  weeks = 12,
+  userBodyweightLbs = 0
 ): WeeklyVolume[] {
   const groupExerciseIds = new Set(
     exercises.filter((e) => e.muscleGroup === muscleGroup).map((e) => e.id)
@@ -85,7 +99,7 @@ export function weeklyVolumeForMuscleGroup(
     workout.exercises
       .filter((we) => groupExerciseIds.has(we.exerciseId))
       .flatMap((we) => we.sets)
-      .reduce((sum, s) => sum + setVolume(s.weight, s.reps), 0)
+      .reduce((sum, s) => sum + setVolume(effectiveSetWeight(s, userBodyweightLbs), s.reps), 0)
   )
 }
 
@@ -121,7 +135,12 @@ function buildWeeklyBuckets(
 
 export interface PersonalRecord {
   exerciseId: string
-  /** Heaviest single set weight (lbs) */
+  /** True when all sets for this exercise are bodyweight-based */
+  isBodyweight: boolean
+  /**
+   * For regular exercises: heaviest single-set weight (lbs).
+   * For bodyweight exercises: most additional weight added on top of BW (lbs).
+   */
   heaviestWeight: number
   heaviestWeightDate: string
   heaviestWeightReps: number
@@ -129,7 +148,10 @@ export interface PersonalRecord {
   mostReps: number
   mostRepsDate: string
   mostRepsWeight: number
-  /** Best estimated 1-rep max using Epley formula: weight × (1 + reps / 30) */
+  /**
+   * Best estimated 1-rep max using Epley formula: effectiveWeight × (1 + reps / 30).
+   * For bodyweight exercises this uses (userBodyweightLbs + additionalWeight) when BW is set.
+   */
   best1RM: number
   best1RMDate: string
   /** Best single-session total volume for this exercise */
@@ -140,8 +162,13 @@ export interface PersonalRecord {
 /**
  * Calculate all-time personal records for every exercise that appears in the
  * provided workouts.  All weight values are stored / returned in lbs.
+ *
+ * @param userBodyweightLbs - Used to compute effective weight for bodyweight sets (default 0 = only additional weight counts).
  */
-export function calculatePersonalRecords(workouts: Workout[]): PersonalRecord[] {
+export function calculatePersonalRecords(
+  workouts: Workout[],
+  userBodyweightLbs = 0
+): PersonalRecord[] {
   const map = new Map<string, PersonalRecord>()
 
   const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date))
@@ -150,14 +177,19 @@ export function calculatePersonalRecords(workouts: Workout[]): PersonalRecord[] 
     // Aggregate per-exercise volume for this single session
     const sessionVolume = new Map<string, number>()
     for (const we of workout.exercises) {
-      const vol = we.sets.reduce((s, st) => s + setVolume(st.weight, st.reps), 0)
+      const vol = we.sets.reduce(
+        (s, st) => s + setVolume(effectiveSetWeight(st, userBodyweightLbs), st.reps),
+        0
+      )
       sessionVolume.set(we.exerciseId, (sessionVolume.get(we.exerciseId) ?? 0) + vol)
     }
 
     for (const we of workout.exercises) {
+      const isBW = we.sets.some((s) => s.isBodyweight)
       const existing = map.get(we.exerciseId)
       const pr: PersonalRecord = existing ?? {
         exerciseId: we.exerciseId,
+        isBodyweight: isBW,
         heaviestWeight: 0,
         heaviestWeightDate: workout.date,
         heaviestWeightReps: 0,
@@ -170,29 +202,37 @@ export function calculatePersonalRecords(workouts: Workout[]): PersonalRecord[] 
         bestVolumeDate: workout.date,
       }
 
+      // Keep isBodyweight up to date (in case earlier sets lacked the flag due to old data)
+      if (isBW) pr.isBodyweight = true
+
       for (const s of we.sets) {
+        // For bodyweight exercises, "heaviest" means most additional weight added.
+        // For regular exercises, it's the full weight moved.
+        const trackWeight = s.isBodyweight ? s.weight : s.weight
+
         // Heaviest weight (tie-break: more reps)
         if (
-          s.weight > pr.heaviestWeight ||
-          (s.weight === pr.heaviestWeight && s.reps > pr.heaviestWeightReps)
+          trackWeight > pr.heaviestWeight ||
+          (trackWeight === pr.heaviestWeight && s.reps > pr.heaviestWeightReps)
         ) {
-          pr.heaviestWeight = s.weight
+          pr.heaviestWeight = trackWeight
           pr.heaviestWeightReps = s.reps
           pr.heaviestWeightDate = workout.date
         }
 
         // Most reps (tie-break: more weight)
+        const effectiveW = effectiveSetWeight(s, userBodyweightLbs)
         if (
           s.reps > pr.mostReps ||
-          (s.reps === pr.mostReps && s.weight > pr.mostRepsWeight)
+          (s.reps === pr.mostReps && effectiveW > pr.mostRepsWeight)
         ) {
           pr.mostReps = s.reps
-          pr.mostRepsWeight = s.weight
+          pr.mostRepsWeight = effectiveW
           pr.mostRepsDate = workout.date
         }
 
-        // Best estimated 1RM (Epley: weight × (1 + reps / 30))
-        const estimated1RM = s.weight * (1 + s.reps / 30)
+        // Best estimated 1RM (Epley: effectiveWeight × (1 + reps / 30))
+        const estimated1RM = effectiveW * (1 + s.reps / 30)
         if (estimated1RM > pr.best1RM) {
           pr.best1RM = estimated1RM
           pr.best1RMDate = workout.date
@@ -218,12 +258,16 @@ export function calculatePersonalRecords(workouts: Workout[]): PersonalRecord[] 
  */
 export function totalVolumeByExercise(
   workouts: Workout[],
-  exercises: Exercise[]
+  exercises: Exercise[],
+  userBodyweightLbs = 0
 ): { exerciseName: string; muscleGroup: MuscleGroup; volume: number }[] {
   const map = new Map<string, number>()
   for (const workout of workouts) {
     for (const we of workout.exercises) {
-      const vol = we.sets.reduce((s, st) => s + setVolume(st.weight, st.reps), 0)
+      const vol = we.sets.reduce(
+        (s, st) => s + setVolume(effectiveSetWeight(st, userBodyweightLbs), st.reps),
+        0
+      )
       map.set(we.exerciseId, (map.get(we.exerciseId) ?? 0) + vol)
     }
   }
@@ -244,14 +288,18 @@ export function totalVolumeByExercise(
  */
 export function totalVolumeByMuscleGroup(
   workouts: Workout[],
-  exercises: Exercise[]
+  exercises: Exercise[],
+  userBodyweightLbs = 0
 ): { muscleGroup: MuscleGroup; volume: number }[] {
   const map = new Map<MuscleGroup, number>()
   for (const workout of workouts) {
     for (const we of workout.exercises) {
       const ex = exercises.find((e) => e.id === we.exerciseId)
       if (!ex) continue
-      const vol = we.sets.reduce((s, st) => s + setVolume(st.weight, st.reps), 0)
+      const vol = we.sets.reduce(
+        (s, st) => s + setVolume(effectiveSetWeight(st, userBodyweightLbs), st.reps),
+        0
+      )
       map.set(ex.muscleGroup, (map.get(ex.muscleGroup) ?? 0) + vol)
     }
   }

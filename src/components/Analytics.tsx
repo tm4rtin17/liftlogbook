@@ -27,12 +27,13 @@ interface Props {
   workouts: Workout[]
   exercises: Exercise[]
   weightUnit: 'lbs' | 'kg'
+  bodyweightLbs?: number
 }
 
 type ViewMode = 'overview' | 'muscleGroup' | 'exercise'
 const WEEK_OPTIONS = [4, 8, 12, 24]
 
-export function Analytics({ workouts, exercises, weightUnit }: Props) {
+export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Props) {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
   const [mode, setMode] = useState<ViewMode>('overview')
@@ -42,32 +43,34 @@ export function Analytics({ workouts, exercises, weightUnit }: Props) {
 
   const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
 
+  const bwLbs = bodyweightLbs ?? 0
+
   const muscleGroupVolume = useMemo(
-    () => totalVolumeByMuscleGroup(workouts, exercises),
-    [workouts, exercises]
+    () => totalVolumeByMuscleGroup(workouts, exercises, bwLbs),
+    [workouts, exercises, bwLbs]
   )
   const exerciseVolumes = useMemo(
-    () => totalVolumeByExercise(workouts, exercises),
-    [workouts, exercises]
+    () => totalVolumeByExercise(workouts, exercises, bwLbs),
+    [workouts, exercises, bwLbs]
   )
   const weeklyGroupData = useMemo(
     () =>
       (selectedGroup === 'All'
-        ? weeklyVolumeForAllMuscleGroups(workouts, weeks)
-        : weeklyVolumeForMuscleGroup(workouts, selectedGroup, exercises, weeks)
+        ? weeklyVolumeForAllMuscleGroups(workouts, weeks, bwLbs)
+        : weeklyVolumeForMuscleGroup(workouts, selectedGroup, exercises, weeks, bwLbs)
       ).map((d) => ({
         ...d,
         volume: toDisplayWeight(d.volume, weightUnit),
       })),
-    [workouts, selectedGroup, exercises, weeks, weightUnit]
+    [workouts, selectedGroup, exercises, weeks, weightUnit, bwLbs]
   )
   const weeklyExerciseData = useMemo(() => {
     if (!selectedExerciseId) return []
-    return weeklyVolumeForExercise(workouts, selectedExerciseId, weeks).map((d) => ({
+    return weeklyVolumeForExercise(workouts, selectedExerciseId, weeks, bwLbs).map((d) => ({
       ...d,
       volume: toDisplayWeight(d.volume, weightUnit),
     }))
-  }, [workouts, selectedExerciseId, weeks, weightUnit])
+  }, [workouts, selectedExerciseId, weeks, weightUnit, bwLbs])
 
   const pieData = useMemo(
     () =>

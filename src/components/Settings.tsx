@@ -56,6 +56,28 @@ export function Settings({
   const [importMessage, setImportMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Bodyweight field — display in the user's chosen unit
+  const storedBwLbs = settings.bodyweightLbs
+  const bwDisplayInit = storedBwLbs
+    ? String(
+        settings.weightUnit === 'kg'
+          ? Math.round((storedBwLbs / 2.20462) * 10) / 10
+          : storedBwLbs
+      )
+    : ''
+  const [bwInput, setBwInput] = useState(bwDisplayInit)
+
+  function handleSaveBodyweight() {
+    const raw = parseFloat(bwInput)
+    if (isNaN(raw) || raw <= 0) {
+      onUpdateSettings({ ...settings, bodyweightLbs: undefined })
+    } else {
+      const lbs =
+        settings.weightUnit === 'kg' ? Math.round(raw * 2.20462 * 10) / 10 : raw
+      onUpdateSettings({ ...settings, bodyweightLbs: lbs })
+    }
+  }
+
   function handleExportJSON() {
     const backup = {
       version: '1.0',
@@ -230,6 +252,38 @@ export function Settings({
           >
             Apply
           </Button>
+        </div>
+      </section>
+
+      {/* Bodyweight */}
+      <section className="rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-zinc-800/60 border-b border-slate-100 dark:border-zinc-800">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Your Bodyweight</h2>
+        </div>
+        <div className="px-4 py-4 flex flex-col gap-3">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">
+            Used to calculate volume for bodyweight exercises (push-ups, pull-ups, dips, etc.).
+            Leave blank to track only added weight.
+          </p>
+          <div className="flex items-end gap-2">
+            <div className="w-36">
+              <Input
+                label={`Bodyweight (${settings.weightUnit})`}
+                type="number"
+                min="0"
+                step={settings.weightUnit === 'kg' ? '0.5' : '1'}
+                placeholder="e.g. 175"
+                value={bwInput}
+                onChange={(e) => setBwInput(e.target.value)}
+              />
+            </div>
+            <Button size="sm" onClick={handleSaveBodyweight}>
+              Save
+            </Button>
+            {settings.bodyweightLbs && (
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 pb-1.5">Saved</span>
+            )}
+          </div>
         </div>
       </section>
 

@@ -9,16 +9,16 @@ const BUILT_IN_EXERCISES: Omit<Exercise, 'id'>[] = [
   { name: 'Incline Dumbbell Press', muscleGroup: 'Chest' },
   { name: 'Dumbbell Fly', muscleGroup: 'Chest' },
   { name: 'Cable Fly', muscleGroup: 'Chest' },
-  { name: 'Push-Up', muscleGroup: 'Chest' },
-  { name: 'Chest Dip', muscleGroup: 'Chest' },
+  { name: 'Push-Up', muscleGroup: 'Chest', isBodyweight: true },
+  { name: 'Chest Dip', muscleGroup: 'Chest', isBodyweight: true },
 
   // Back
   { name: 'Conventional Deadlift', muscleGroup: 'Back' },
   { name: 'Barbell Row', muscleGroup: 'Back' },
   { name: 'Pendlay Row', muscleGroup: 'Back' },
   { name: 'Dumbbell Row', muscleGroup: 'Back' },
-  { name: 'Pull-Up', muscleGroup: 'Back' },
-  { name: 'Chin-Up', muscleGroup: 'Back' },
+  { name: 'Pull-Up', muscleGroup: 'Back', isBodyweight: true },
+  { name: 'Chin-Up', muscleGroup: 'Back', isBodyweight: true },
   { name: 'Lat Pulldown', muscleGroup: 'Back' },
   { name: 'Seated Cable Row', muscleGroup: 'Back' },
   { name: 'T-Bar Row', muscleGroup: 'Back' },
@@ -48,7 +48,7 @@ const BUILT_IN_EXERCISES: Omit<Exercise, 'id'>[] = [
   { name: 'Skull Crusher', muscleGroup: 'Triceps' },
   { name: 'Close-Grip Bench Press', muscleGroup: 'Triceps' },
   { name: 'Tricep Kickback', muscleGroup: 'Triceps' },
-  { name: 'Tricep Dip', muscleGroup: 'Triceps' },
+  { name: 'Tricep Dip', muscleGroup: 'Triceps', isBodyweight: true },
 
   // Legs
   { name: 'Barbell Back Squat', muscleGroup: 'Legs' },
@@ -76,7 +76,7 @@ const BUILT_IN_EXERCISES: Omit<Exercise, 'id'>[] = [
   { name: 'Plank', muscleGroup: 'Core' },
   { name: 'Ab Wheel Rollout', muscleGroup: 'Core' },
   { name: 'Cable Crunch', muscleGroup: 'Core' },
-  { name: 'Hanging Leg Raise', muscleGroup: 'Core' },
+  { name: 'Hanging Leg Raise', muscleGroup: 'Core', isBodyweight: true },
   { name: 'Russian Twist', muscleGroup: 'Core' },
   { name: 'Decline Sit-Up', muscleGroup: 'Core' },
 

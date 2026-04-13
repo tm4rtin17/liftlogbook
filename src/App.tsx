@@ -55,6 +55,7 @@ function AppShell() {
               <WorkoutLogger
                 exercises={exercises}
                 weightUnit={settings.weightUnit}
+                bodyweightLbs={settings.bodyweightLbs}
                 onSave={async (w) => {
                   await addWorkout(w)
                   setActiveTab('history')
@@ -71,6 +72,7 @@ function AppShell() {
                 workouts={workouts}
                 exercises={exercises}
                 weightUnit={settings.weightUnit}
+                bodyweightLbs={settings.bodyweightLbs}
                 onDelete={removeWorkout}
                 onUpdate={updateWorkout}
                 onAddCustomExercise={addCustomExercise}
@@ -85,6 +87,7 @@ function AppShell() {
                 workouts={workouts}
                 exercises={exercises}
                 weightUnit={settings.weightUnit}
+                bodyweightLbs={settings.bodyweightLbs}
               />
             </section>
           )}
@@ -96,6 +99,7 @@ function AppShell() {
                 workouts={workouts}
                 exercises={exercises}
                 weightUnit={settings.weightUnit}
+                bodyweightLbs={settings.bodyweightLbs}
               />
             </section>
           )}
