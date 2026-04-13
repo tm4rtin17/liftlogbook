@@ -20,10 +20,12 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
   }
 
   body {
     @apply antialiased text-slate-900 dark:text-zinc-100 dark:bg-zinc-950;
+    overflow-x: hidden;
   }
 
   /* Number input spinners — hide on mobile for cleaner look */

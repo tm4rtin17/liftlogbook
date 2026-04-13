@@ -118,7 +118,7 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
           <button
             key={m}
             onClick={() => setMode(m)}
-            className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition-colors ${
+            className={`flex-1 min-w-0 rounded-lg py-1.5 text-sm font-medium transition-colors ${
               mode === m
                 ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-100 shadow-sm'
                 : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
