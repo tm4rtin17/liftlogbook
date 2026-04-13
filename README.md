@@ -75,14 +75,17 @@ PORT=3001
 
 ### Data persistence
 
-The SQLite database is stored in `./data/` on the host and mounted into the container. Back up that directory to preserve user data.
+The SQLite database is stored in a named Docker volume (`liftlogbook_data`) and persists across container restarts and rebuilds. To back up your data, inspect the volume location with `docker volume inspect liftlogbook_data` and copy the `liftlogbook.db` file from there.
 
 ```bash
-# Stop and remove containers (data is safe in ./data/)
+# Stop and remove containers (data is safe in the named volume)
 docker compose down
 
-# Rebuild after a code change
+# Rebuild after a code change (data volume is preserved)
 docker compose up -d --build
+
+# Remove containers AND delete all data (irreversible)
+docker compose down -v
 ```
 
 ---
