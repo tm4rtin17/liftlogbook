@@ -17,6 +17,7 @@ import {
   toDisplayWeight,
   weeklyVolumeForExercise,
   weeklyVolumeForMuscleGroup,
+  weeklyVolumeForAllMuscleGroups,
   totalVolumeByMuscleGroup,
   totalVolumeByExercise,
 } from '../utils/analytics'
@@ -35,7 +36,7 @@ export function Analytics({ workouts, exercises, weightUnit }: Props) {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
   const [mode, setMode] = useState<ViewMode>('overview')
-  const [selectedGroup, setSelectedGroup] = useState<MuscleGroup>('Chest')
+  const [selectedGroup, setSelectedGroup] = useState<MuscleGroup | 'All'>('All')
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>('')
   const [weeks, setWeeks] = useState(12)
 
@@ -51,7 +52,10 @@ export function Analytics({ workouts, exercises, weightUnit }: Props) {
   )
   const weeklyGroupData = useMemo(
     () =>
-      weeklyVolumeForMuscleGroup(workouts, selectedGroup, exercises, weeks).map((d) => ({
+      (selectedGroup === 'All'
+        ? weeklyVolumeForAllMuscleGroups(workouts, weeks)
+        : weeklyVolumeForMuscleGroup(workouts, selectedGroup, exercises, weeks)
+      ).map((d) => ({
         ...d,
         volume: toDisplayWeight(d.volume, weightUnit),
       })),
@@ -192,6 +196,16 @@ export function Analytics({ workouts, exercises, weightUnit }: Props) {
       {mode === 'muscleGroup' && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setSelectedGroup('All')}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                selectedGroup === 'All'
+                  ? 'text-white border-transparent bg-slate-500'
+                  : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'
+              }`}
+            >
+              All
+            </button>
             {MUSCLE_GROUPS.filter((g) =>
               muscleGroupVolume.some((d) => d.muscleGroup === g && d.volume > 0)
             ).map((g) => (
@@ -212,23 +226,25 @@ export function Analytics({ workouts, exercises, weightUnit }: Props) {
 
           <WeeksSelector value={weeks} onChange={setWeeks} />
 
-          <Card title={`${selectedGroup} — Weekly Volume`}>
+          <Card title={`${selectedGroup === 'All' ? 'All Muscle Groups' : selectedGroup} — Weekly Volume`}>
             <VolumeBarChart
               data={weeklyGroupData}
               weightUnit={weightUnit}
-              color={MUSCLE_GROUP_COLORS[selectedGroup]}
+              color={selectedGroup === 'All' ? '#64748b' : MUSCLE_GROUP_COLORS[selectedGroup]}
               axisColor={axisColor}
               gridColor={gridColor}
               tooltipStyle={tooltipStyle}
             />
           </Card>
 
-          <MuscleGroupSummary
-            muscleGroup={selectedGroup}
-            workouts={workouts}
-            exercises={exercises}
-            weightUnit={weightUnit}
-          />
+          {selectedGroup !== 'All' && (
+            <MuscleGroupSummary
+              muscleGroup={selectedGroup}
+              workouts={workouts}
+              exercises={exercises}
+              weightUnit={weightUnit}
+            />
+          )}
         </div>
       )}
 
