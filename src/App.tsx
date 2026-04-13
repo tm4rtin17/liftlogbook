@@ -3,12 +3,13 @@ import { Navigation } from './components/Navigation'
 import { WorkoutLogger } from './components/WorkoutLogger'
 import { History } from './components/History'
 import { Analytics } from './components/Analytics'
+import { PersonalRecords } from './components/PersonalRecords'
 import { Settings } from './components/Settings'
 import { AuthScreen } from './screens/AuthScreen'
 import { useStore } from './hooks/useStore'
 import { useAuth } from './contexts/AuthContext'
 
-type Tab = 'log' | 'history' | 'analytics' | 'settings'
+type Tab = 'log' | 'history' | 'analytics' | 'prs' | 'settings'
 
 function AppShell() {
   const [activeTab, setActiveTab] = useState<Tab>('log')
@@ -80,6 +81,17 @@ function AppShell() {
             <section>
               <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">Analytics</h2>
               <Analytics
+                workouts={workouts}
+                exercises={exercises}
+                weightUnit={settings.weightUnit}
+              />
+            </section>
+          )}
+
+          {activeTab === 'prs' && (
+            <section>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">Personal Records</h2>
+              <PersonalRecords
                 workouts={workouts}
                 exercises={exercises}
                 weightUnit={settings.weightUnit}
