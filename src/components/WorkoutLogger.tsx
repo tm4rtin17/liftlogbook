@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { format } from 'date-fns'
 import { Exercise, MuscleGroup, Workout, WorkoutExercise, WorkoutSet } from '../types'
-import { toDisplayWeight, toStoredLbs } from '../utils/analytics'
+import { effectiveSetWeight, toDisplayWeight, toStoredLbs } from '../utils/analytics'
 import { MuscleGroupBadge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
@@ -11,22 +11,24 @@ import { ExercisePicker } from './ExercisePicker'
 interface Props {
   exercises: Exercise[]
   weightUnit: 'lbs' | 'kg'
+  bodyweightLbs?: number
   onSave: (workout: Omit<Workout, 'id'>) => Promise<void>
   onAddCustomExercise: (name: string, muscleGroup: MuscleGroup) => Promise<Exercise>
   existingWorkout?: Workout
 }
 
-function emptySet(): WorkoutSet {
-  return { id: uuidv4(), reps: 0, weight: 0 }
+function emptySet(isBodyweight = false): WorkoutSet {
+  return { id: uuidv4(), reps: 0, weight: 0, isBodyweight: isBodyweight || undefined }
 }
 
-function emptyWorkoutExercise(exerciseId: string): WorkoutExercise {
-  return { id: uuidv4(), exerciseId, sets: [emptySet()] }
+function emptyWorkoutExercise(exercise: Exercise): WorkoutExercise {
+  return { id: uuidv4(), exerciseId: exercise.id, sets: [emptySet(exercise.isBodyweight)] }
 }
 
 export function WorkoutLogger({
   exercises,
   weightUnit,
+  bodyweightLbs,
   onSave,
   onAddCustomExercise,
   existingWorkout,
@@ -45,7 +47,7 @@ export function WorkoutLogger({
   const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
 
   function addExercise(ex: Exercise) {
-    setWorkoutExercises((prev) => [...prev, emptyWorkoutExercise(ex.id)])
+    setWorkoutExercises((prev) => [...prev, emptyWorkoutExercise(ex)])
   }
 
   function removeExercise(weId: string) {
@@ -57,9 +59,10 @@ export function WorkoutLogger({
       prev.map((we) => {
         if (we.id !== weId) return we
         const lastSet = we.sets[we.sets.length - 1]
+        const ex = exerciseMap.get(we.exerciseId)
         const newSet: WorkoutSet = lastSet
-          ? { id: uuidv4(), reps: lastSet.reps, weight: lastSet.weight }
-          : emptySet()
+          ? { id: uuidv4(), reps: lastSet.reps, weight: lastSet.weight, isBodyweight: lastSet.isBodyweight }
+          : emptySet(ex?.isBodyweight)
         return { ...we, sets: [...we.sets, newSet] }
       })
     )
@@ -121,7 +124,12 @@ export function WorkoutLogger({
   const totalSets = workoutExercises.reduce((s, we) => s + we.sets.length, 0)
   const totalVolume = workoutExercises
     .flatMap((we) => we.sets)
-    .reduce((s, st) => s + st.weight * st.reps, 0)
+    .reduce((s, st) => s + effectiveSetWeight(st, bodyweightLbs ?? 0) * st.reps, 0)
+
+  const hasBWExercise = workoutExercises.some((we) =>
+    we.sets.some((s) => s.isBodyweight)
+  )
+  const bwNotSet = hasBWExercise && !bodyweightLbs
 
   return (
     <div className="flex flex-col gap-4">
@@ -145,6 +153,13 @@ export function WorkoutLogger({
         </div>
       </div>
 
+      {/* Bodyweight notice */}
+      {bwNotSet && (
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          Set your bodyweight in Settings to include it in volume calculations for bodyweight exercises.
+        </div>
+      )}
+
       {/* Exercises */}
       {workoutExercises.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-700 py-12 flex flex-col items-center gap-3 text-slate-400">
@@ -163,6 +178,7 @@ export function WorkoutLogger({
                 we={we}
                 exercise={ex}
                 weightUnit={weightUnit}
+                bodyweightLbs={bodyweightLbs}
                 onAddSet={() => addSet(we.id)}
                 onRemoveSet={(sid) => removeSet(we.id, sid)}
                 onUpdateSet={(sid, field, val) => updateSet(we.id, sid, field, val)}
@@ -185,6 +201,7 @@ export function WorkoutLogger({
             <p>{workoutExercises.length} exercise{workoutExercises.length !== 1 ? 's' : ''} &middot; {totalSets} sets</p>
             <p className="font-medium text-slate-700 dark:text-zinc-300">
               Total volume: {toDisplayWeight(totalVolume, weightUnit).toLocaleString()} {weightUnit}
+              {bwNotSet && <span className="text-amber-500 ml-1">(BW not included)</span>}
             </p>
           </div>
           <Button onClick={handleSave} size="lg" disabled={saving}>
@@ -208,6 +225,7 @@ interface ExerciseBlockProps {
   we: WorkoutExercise
   exercise: Exercise
   weightUnit: 'lbs' | 'kg'
+  bodyweightLbs?: number
   onAddSet: () => void
   onRemoveSet: (id: string) => void
   onUpdateSet: (setId: string, field: 'reps' | 'weight', value: string) => void
@@ -218,12 +236,17 @@ function ExerciseBlock({
   we,
   exercise,
   weightUnit,
+  bodyweightLbs,
   onAddSet,
   onRemoveSet,
   onUpdateSet,
   onRemove,
 }: ExerciseBlockProps) {
-  const blockVolume = we.sets.reduce((s, st) => s + st.weight * st.reps, 0)
+  const isBW = exercise.isBodyweight
+  const blockVolume = we.sets.reduce(
+    (s, st) => s + effectiveSetWeight(st, bodyweightLbs ?? 0) * st.reps,
+    0
+  )
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
@@ -231,6 +254,11 @@ function ExerciseBlock({
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-semibold text-slate-800 dark:text-zinc-100 truncate">{exercise.name}</span>
           <MuscleGroupBadge muscleGroup={exercise.muscleGroup} />
+          {isBW && (
+            <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
+              BW
+            </span>
+          )}
         </div>
         <button
           onClick={onRemove}
@@ -245,7 +273,7 @@ function ExerciseBlock({
         <div className="grid grid-cols-[1.5rem_1fr_1fr_1.5rem] gap-x-3 gap-y-2 items-center">
           <span className="text-xs font-medium text-slate-400 text-center">#</span>
           <span className="text-xs font-medium text-slate-400 dark:text-zinc-500 uppercase tracking-wide">
-            Weight ({weightUnit})
+            {isBW ? `Added Wt (${weightUnit})` : `Weight (${weightUnit})`}
           </span>
           <span className="text-xs font-medium text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Reps</span>
           <span />
@@ -256,6 +284,8 @@ function ExerciseBlock({
               index={idx + 1}
               set={set}
               weightUnit={weightUnit}
+              bodyweightLbs={bodyweightLbs}
+              isBodyweightExercise={isBW}
               onUpdate={(field, val) => onUpdateSet(set.id, field, val)}
               onRemove={() => onRemoveSet(set.id)}
               canRemove={we.sets.length > 1}
@@ -274,6 +304,14 @@ function ExerciseBlock({
         {blockVolume > 0 && (
           <span className="text-xs text-slate-400 dark:text-zinc-500">
             {toDisplayWeight(blockVolume, weightUnit).toLocaleString()} {weightUnit}
+            {isBW && !bodyweightLbs && blockVolume > 0 && (
+              <span className="ml-1 text-amber-500">(+BW)</span>
+            )}
+          </span>
+        )}
+        {isBW && bodyweightLbs && blockVolume === 0 && (
+          <span className="text-xs text-slate-400 dark:text-zinc-500">
+            BW only
           </span>
         )}
       </div>
@@ -285,29 +323,44 @@ interface SetRowProps {
   index: number
   set: WorkoutSet
   weightUnit: 'lbs' | 'kg'
+  bodyweightLbs?: number
+  isBodyweightExercise?: boolean
   onUpdate: (field: 'reps' | 'weight', value: string) => void
   onRemove: () => void
   canRemove: boolean
 }
 
-function SetRow({ index, set, weightUnit, onUpdate, onRemove, canRemove }: SetRowProps) {
+function SetRow({ index, set, weightUnit, bodyweightLbs, isBodyweightExercise, onUpdate, onRemove, canRemove }: SetRowProps) {
   const displayWeight = set.weight > 0 ? toDisplayWeight(set.weight, weightUnit) : ''
+
+  // Show a "BW + X" hint when bodyweight is known and additional weight is logged
+  const bwHint =
+    isBodyweightExercise && bodyweightLbs && set.weight > 0
+      ? `= ${toDisplayWeight(bodyweightLbs + set.weight, weightUnit)} ${weightUnit} total`
+      : null
 
   return (
     <>
       <span className="text-xs text-slate-400 text-center font-mono">{index}</span>
-      <input
-        type="number"
-        min="0"
-        step={weightUnit === 'kg' ? '0.5' : '5'}
-        defaultValue={displayWeight || ''}
-        placeholder="0"
-        onBlur={(e) => onUpdate('weight', e.target.value)}
-        onChange={(e) => onUpdate('weight', e.target.value)}
-        className="w-full rounded-lg border border-slate-300 dark:border-zinc-600 px-2 py-1.5 text-sm text-center
-          bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100
-          focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 outline-none"
-      />
+      <div className="flex flex-col gap-0.5">
+        <input
+          type="number"
+          min="0"
+          step={weightUnit === 'kg' ? '0.5' : '5'}
+          defaultValue={displayWeight || ''}
+          placeholder={isBodyweightExercise ? '+0' : '0'}
+          onBlur={(e) => onUpdate('weight', e.target.value)}
+          onChange={(e) => onUpdate('weight', e.target.value)}
+          className="w-full rounded-lg border border-slate-300 dark:border-zinc-600 px-2 py-1.5 text-sm text-center
+            bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100
+            focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 outline-none"
+        />
+        {bwHint && (
+          <span className="text-[10px] text-center text-violet-500 dark:text-violet-400 leading-tight">
+            {bwHint}
+          </span>
+        )}
+      </div>
       <input
         type="number"
         min="0"

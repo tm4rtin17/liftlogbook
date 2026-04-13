@@ -12,6 +12,7 @@ interface Props {
   workouts: Workout[]
   exercises: Exercise[]
   weightUnit: 'lbs' | 'kg'
+  bodyweightLbs?: number
   onDelete: (id: string) => Promise<void>
   onUpdate: (workout: Workout) => Promise<void>
   onAddCustomExercise: (name: string, muscleGroup: MuscleGroup) => Promise<Exercise>
@@ -21,6 +22,7 @@ export function History({
   workouts,
   exercises,
   weightUnit,
+  bodyweightLbs,
   onDelete,
   onUpdate,
   onAddCustomExercise,
@@ -65,7 +67,7 @@ export function History({
           <div className="flex flex-col gap-2">
             {mWorkouts.map((workout) => {
               const isExpanded = expandedId === workout.id
-              const volume = workoutTotalVolume(workout)
+              const volume = workoutTotalVolume(workout, bodyweightLbs ?? 0)
               const muscleGroups = [
                 ...new Set(
                   workout.exercises
@@ -127,7 +129,11 @@ export function History({
                               <div key={s.id} className="grid grid-cols-3 gap-x-2 text-sm py-0.5">
                                 <span className="text-slate-400 dark:text-zinc-500">{idx + 1}</span>
                                 <span className="font-medium text-slate-800 dark:text-zinc-200">
-                                  {toDisplayWeight(s.weight, weightUnit)} {weightUnit}
+                                  {s.isBodyweight
+                                    ? s.weight > 0
+                                      ? `BW + ${toDisplayWeight(s.weight, weightUnit)} ${weightUnit}`
+                                      : 'BW'
+                                    : `${toDisplayWeight(s.weight, weightUnit)} ${weightUnit}`}
                                 </span>
                                 <span className="font-medium text-slate-800 dark:text-zinc-200">{s.reps} reps</span>
                               </div>
@@ -157,6 +163,7 @@ export function History({
           <WorkoutLogger
             exercises={exercises}
             weightUnit={weightUnit}
+            bodyweightLbs={bodyweightLbs}
             existingWorkout={editingWorkout}
             onAddCustomExercise={onAddCustomExercise}
             onSave={async (updated) => {

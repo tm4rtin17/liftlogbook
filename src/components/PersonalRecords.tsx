@@ -9,16 +9,20 @@ interface Props {
   workouts: Workout[]
   exercises: Exercise[]
   weightUnit: 'lbs' | 'kg'
+  bodyweightLbs?: number
 }
 
 function formatDate(iso: string): string {
   return format(parseISO(iso), 'MMM d, yyyy')
 }
 
-export function PersonalRecords({ workouts, exercises, weightUnit }: Props) {
+export function PersonalRecords({ workouts, exercises, weightUnit, bodyweightLbs }: Props) {
   const [selectedGroup, setSelectedGroup] = useState<MuscleGroup | 'All'>('All')
 
-  const prs = useMemo(() => calculatePersonalRecords(workouts), [workouts])
+  const prs = useMemo(
+    () => calculatePersonalRecords(workouts, bodyweightLbs ?? 0),
+    [workouts, bodyweightLbs]
+  )
 
   const exerciseMap = useMemo(
     () => new Map(exercises.map((e) => [e.id, e])),
@@ -144,34 +148,56 @@ function PRCard({
   weightUnit: 'lbs' | 'kg'
 }) {
   const w = (lbs: number) => toDisplayWeight(lbs, weightUnit)
+  const isBW = pr.isBodyweight
+
+  const heaviestLabel = isBW ? 'Max Added Weight' : 'Heaviest Weight'
+  const heaviestSub = isBW
+    ? pr.heaviestWeight > 0
+      ? `+ ${w(pr.heaviestWeight)} ${weightUnit} added`
+      : 'bodyweight only'
+    : `× ${pr.heaviestWeightReps} reps`
+
+  const mostRepsSub = isBW
+    ? pr.mostRepsWeight > 0
+      ? `@ BW + ${w(pr.mostRepsWeight)} ${weightUnit}`
+      : '@ bodyweight'
+    : `@ ${w(pr.mostRepsWeight)} ${weightUnit}`
+
+  const oneRMSub = isBW ? 'Epley · incl. BW if set' : 'Epley formula'
 
   const stats: { icon: string; label: string; value: string; sub: string; date: string }[] = [
     {
       icon: '🏋️',
-      label: 'Heaviest Weight',
-      value: `${w(pr.heaviestWeight)} ${weightUnit}`,
-      sub: `× ${pr.heaviestWeightReps} reps`,
+      label: heaviestLabel,
+      value: isBW
+        ? pr.heaviestWeight > 0
+          ? `+${w(pr.heaviestWeight)} ${weightUnit}`
+          : 'BW'
+        : `${w(pr.heaviestWeight)} ${weightUnit}`,
+      sub: heaviestSub,
       date: formatDate(pr.heaviestWeightDate),
     },
     {
       icon: '🔁',
       label: 'Most Reps',
       value: `${pr.mostReps} reps`,
-      sub: `@ ${w(pr.mostRepsWeight)} ${weightUnit}`,
+      sub: mostRepsSub,
       date: formatDate(pr.mostRepsDate),
     },
     {
       icon: '⚡',
       label: 'Est. 1-Rep Max',
-      value: `${Math.round(w(pr.best1RM))} ${weightUnit}`,
-      sub: 'Epley formula',
+      value: pr.best1RM > 0 ? `${Math.round(w(pr.best1RM))} ${weightUnit}` : '—',
+      sub: oneRMSub,
       date: formatDate(pr.best1RMDate),
     },
     {
       icon: '📦',
       label: 'Best Session Volume',
-      value: `${Math.round(w(pr.bestVolume)).toLocaleString()} ${weightUnit}`,
-      sub: 'total weight moved',
+      value: pr.bestVolume > 0
+        ? `${Math.round(w(pr.bestVolume)).toLocaleString()} ${weightUnit}`
+        : '—',
+      sub: isBW ? 'incl. BW if set' : 'total weight moved',
       date: formatDate(pr.bestVolumeDate),
     },
   ]
@@ -180,7 +206,14 @@ function PRCard({
     <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-800">
-        <span className="font-semibold text-slate-800 dark:text-zinc-100">{exercise.name}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-800 dark:text-zinc-100">{exercise.name}</span>
+          {isBW && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
+              BW
+            </span>
+          )}
+        </div>
         <MuscleGroupBadge muscleGroup={exercise.muscleGroup} />
       </div>
 
