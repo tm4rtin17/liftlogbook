@@ -56,6 +56,20 @@ export function weeklyVolumeForExercise(
 }
 
 /**
+ * Aggregate weekly volume across all muscle groups over the past N weeks.
+ */
+export function weeklyVolumeForAllMuscleGroups(
+  workouts: Workout[],
+  weeks = 12
+): WeeklyVolume[] {
+  return buildWeeklyBuckets(workouts, weeks, (workout) =>
+    workout.exercises
+      .flatMap((we) => we.sets)
+      .reduce((sum, s) => sum + setVolume(s.weight, s.reps), 0)
+  )
+}
+
+/**
  * Aggregate weekly volume for a muscle group over the past N weeks.
  */
 export function weeklyVolumeForMuscleGroup(
