@@ -161,3 +161,7 @@ liftlogbook/
 The SQLite database is created automatically at `data/liftlogbook.db` on first run. The `data/` directory is gitignored — back it up separately if you care about the data.
 
 Weights are always stored internally in lbs. Switching a user's unit preference converts the display only.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
