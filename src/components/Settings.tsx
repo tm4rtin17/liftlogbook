@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { AppSettings, AccentColor, Exercise, MuscleGroup } from '../types'
+import { useRef, useState } from 'react'
+import { AppSettings, AccentColor, Exercise, MuscleGroup, Workout } from '../types'
 import { MUSCLE_GROUPS } from '../data/exercises'
 import { THEME_OPTIONS, applyAccentColor } from '../data/themes'
 import { MuscleGroupBadge } from './ui/Badge'
@@ -9,20 +9,41 @@ import { Modal } from './ui/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 
+interface ImportResult {
+  workoutsImported: number
+  exercisesImported: number
+}
+
 interface Props {
   settings: AppSettings
   exercises: Exercise[]
+  workouts: Workout[]
   onUpdateSettings: (s: AppSettings) => Promise<void>
   onAddCustomExercise: (name: string, group: MuscleGroup) => Promise<Exercise>
   onDeleteCustomExercise: (id: string) => Promise<void>
+  onImportBackup: (backup: unknown) => Promise<ImportResult>
+}
+
+function triggerDownload(content: string, filename: string, type: string) {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 export function Settings({
   settings,
   exercises,
+  workouts,
   onUpdateSettings,
   onAddCustomExercise,
   onDeleteCustomExercise,
+  onImportBackup,
 }: Props) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -31,6 +52,78 @@ export function Settings({
   const [newGroup, setNewGroup] = useState<MuscleGroup>('Chest')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [pendingColor, setPendingColor] = useState<AccentColor>(settings.accentColor ?? 'sky')
+  const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [importMessage, setImportMessage] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function handleExportJSON() {
+    const backup = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      workouts,
+      customExercises: exercises.filter((e) => e.custom),
+      settings,
+    }
+    const dateStr = new Date().toISOString().slice(0, 10)
+    triggerDownload(
+      JSON.stringify(backup, null, 2),
+      `liftlogbook-backup-${dateStr}.json`,
+      'application/json'
+    )
+  }
+
+  function handleExportCSV() {
+    const exerciseMap = new Map(exercises.map((e) => [e.id, e.name]))
+    const csvEscape = (s: string) => `"${s.replace(/"/g, '""')}"`
+    const lines: string[] = ['date,workout_name,exercise_name,set_number,reps,weight_lbs,notes']
+    const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date))
+
+    for (const workout of sorted) {
+      for (const ex of workout.exercises) {
+        const exerciseName = exerciseMap.get(ex.exerciseId) ?? ex.exerciseId
+        for (let i = 0; i < ex.sets.length; i++) {
+          const set = ex.sets[i]
+          lines.push(
+            [
+              workout.date,
+              csvEscape(workout.name),
+              csvEscape(exerciseName),
+              i + 1,
+              set.reps,
+              set.weight,
+              workout.notes ? csvEscape(workout.notes) : '',
+            ].join(',')
+          )
+        }
+      }
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    triggerDownload(lines.join('\n'), `liftlogbook-${dateStr}.csv`, 'text/csv')
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset the input so the same file can be re-selected if needed
+    e.target.value = ''
+
+    setImportStatus('loading')
+    setImportMessage('')
+
+    try {
+      const text = await file.text()
+      const backup = JSON.parse(text)
+      const result = await onImportBackup(backup)
+      setImportStatus('success')
+      setImportMessage(
+        `Imported ${result.workoutsImported} workout${result.workoutsImported !== 1 ? 's' : ''} and ${result.exercisesImported} exercise${result.exercisesImported !== 1 ? 's' : ''}.`
+      )
+    } catch (err) {
+      setImportStatus('error')
+      setImportMessage(err instanceof Error ? err.message : 'Import failed. Check the file format.')
+    }
+  }
 
   function handleApplyColor() {
     applyAccentColor(pendingColor)
@@ -203,10 +296,62 @@ export function Settings({
         <div className="px-4 py-3 bg-slate-50 dark:bg-zinc-800/60 border-b border-slate-100 dark:border-zinc-800">
           <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Data & Storage</h2>
         </div>
-        <div className="px-4 py-4">
+        <div className="px-4 py-4 flex flex-col gap-5">
           <p className="text-sm text-slate-500 dark:text-zinc-400">
-            All data is stored on your home server in a local SQLite database. Nothing is sent to third-party services.
+            All data is stored on your home server in a local SQLite database. Nothing is sent to
+            third-party services.
           </p>
+
+          {/* Export */}
+          <div>
+            <p className="text-sm font-medium text-slate-700 dark:text-zinc-300 mb-0.5">Export</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">
+              Download a backup of your workouts and custom exercises.
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleExportJSON} disabled={workouts.length === 0}>
+                Export JSON
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleExportCSV}
+                disabled={workouts.length === 0}
+              >
+                Export CSV
+              </Button>
+            </div>
+          </div>
+
+          {/* Import */}
+          <div>
+            <p className="text-sm font-medium text-slate-700 dark:text-zinc-300 mb-0.5">Import</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">
+              Restore from a previously exported JSON backup. Existing records are kept; only new
+              entries are added.
+            </p>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={importStatus === 'loading'}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {importStatus === 'loading' ? 'Importing…' : 'Import from backup'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+            {importStatus === 'success' && (
+              <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">{importMessage}</p>
+            )}
+            {importStatus === 'error' && (
+              <p className="mt-2 text-xs text-red-500 dark:text-red-400">{importMessage}</p>
+            )}
+          </div>
         </div>
       </section>
 

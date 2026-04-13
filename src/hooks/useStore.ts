@@ -69,6 +69,27 @@ export function useStore() {
     await api.put('/settings', s)
   }, [])
 
+  const importBackup = useCallback(
+    async (backup: unknown): Promise<{ workoutsImported: number; exercisesImported: number }> => {
+      const result = await api.post<{
+        ok: boolean
+        workoutsImported: number
+        exercisesImported: number
+      }>('/backup/import', backup)
+      // Reload all state from the server after a successful import
+      const [w, ex, s] = await Promise.all([
+        api.get<Workout[]>('/workouts'),
+        api.get<Exercise[]>('/exercises'),
+        api.get<AppSettings>('/settings'),
+      ])
+      setWorkouts(w)
+      setCustomExercises(ex)
+      setSettings(s)
+      return result
+    },
+    []
+  )
+
   return {
     workouts,
     exercises,
@@ -80,5 +101,6 @@ export function useStore() {
     addCustomExercise,
     removeCustomExercise,
     updateSettings,
+    importBackup,
   }
 }
