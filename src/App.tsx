@@ -42,7 +42,7 @@ function AppShell() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-zinc-950">
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between px-4 pt-4 pb-2">
           <h1 className="text-lg font-bold text-brand-700 dark:text-brand-400">LiftLogbook</h1>

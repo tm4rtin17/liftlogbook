@@ -67,7 +67,7 @@ export function WorkoutHeatmap({ workouts, weightUnit }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-zinc-700 p-4 bg-white dark:bg-zinc-900 overflow-hidden">
+    <div className="rounded-xl border border-slate-200 dark:border-zinc-700 p-4 bg-white dark:bg-zinc-900">
       <h3 className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
         Activity
       </h3>
