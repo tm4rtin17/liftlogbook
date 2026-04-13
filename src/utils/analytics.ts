@@ -119,6 +119,100 @@ function buildWeeklyBuckets(
   return buckets
 }
 
+export interface PersonalRecord {
+  exerciseId: string
+  /** Heaviest single set weight (lbs) */
+  heaviestWeight: number
+  heaviestWeightDate: string
+  heaviestWeightReps: number
+  /** Set with the most reps (at any weight) */
+  mostReps: number
+  mostRepsDate: string
+  mostRepsWeight: number
+  /** Best estimated 1-rep max using Epley formula: weight × (1 + reps / 30) */
+  best1RM: number
+  best1RMDate: string
+  /** Best single-session total volume for this exercise */
+  bestVolume: number
+  bestVolumeDate: string
+}
+
+/**
+ * Calculate all-time personal records for every exercise that appears in the
+ * provided workouts.  All weight values are stored / returned in lbs.
+ */
+export function calculatePersonalRecords(workouts: Workout[]): PersonalRecord[] {
+  const map = new Map<string, PersonalRecord>()
+
+  const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date))
+
+  for (const workout of sorted) {
+    // Aggregate per-exercise volume for this single session
+    const sessionVolume = new Map<string, number>()
+    for (const we of workout.exercises) {
+      const vol = we.sets.reduce((s, st) => s + setVolume(st.weight, st.reps), 0)
+      sessionVolume.set(we.exerciseId, (sessionVolume.get(we.exerciseId) ?? 0) + vol)
+    }
+
+    for (const we of workout.exercises) {
+      const existing = map.get(we.exerciseId)
+      const pr: PersonalRecord = existing ?? {
+        exerciseId: we.exerciseId,
+        heaviestWeight: 0,
+        heaviestWeightDate: workout.date,
+        heaviestWeightReps: 0,
+        mostReps: 0,
+        mostRepsDate: workout.date,
+        mostRepsWeight: 0,
+        best1RM: 0,
+        best1RMDate: workout.date,
+        bestVolume: 0,
+        bestVolumeDate: workout.date,
+      }
+
+      for (const s of we.sets) {
+        // Heaviest weight (tie-break: more reps)
+        if (
+          s.weight > pr.heaviestWeight ||
+          (s.weight === pr.heaviestWeight && s.reps > pr.heaviestWeightReps)
+        ) {
+          pr.heaviestWeight = s.weight
+          pr.heaviestWeightReps = s.reps
+          pr.heaviestWeightDate = workout.date
+        }
+
+        // Most reps (tie-break: more weight)
+        if (
+          s.reps > pr.mostReps ||
+          (s.reps === pr.mostReps && s.weight > pr.mostRepsWeight)
+        ) {
+          pr.mostReps = s.reps
+          pr.mostRepsWeight = s.weight
+          pr.mostRepsDate = workout.date
+        }
+
+        // Best estimated 1RM (Epley: weight × (1 + reps / 30))
+        const estimated1RM = s.weight * (1 + s.reps / 30)
+        if (estimated1RM > pr.best1RM) {
+          pr.best1RM = estimated1RM
+          pr.best1RMDate = workout.date
+        }
+      }
+
+      // Best single-session volume
+      const vol = sessionVolume.get(we.exerciseId) ?? 0
+      if (vol > pr.bestVolume) {
+        pr.bestVolume = vol
+        pr.bestVolumeDate = workout.date
+      }
+
+      map.set(we.exerciseId, pr)
+    }
+  }
+
+  return Array.from(map.values())
+}
+
 /**
  * Per-exercise breakdown of total volume over all time (or filtered).
  */

@@ -1,7 +1,7 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 
-type Tab = 'log' | 'history' | 'analytics' | 'settings'
+type Tab = 'log' | 'history' | 'analytics' | 'prs' | 'settings'
 
 interface Props {
   activeTab: Tab
@@ -12,6 +12,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'log', label: 'Log', icon: '🏋️' },
   { id: 'history', label: 'History', icon: '📋' },
   { id: 'analytics', label: 'Analytics', icon: '📊' },
+  { id: 'prs', label: 'Records', icon: '🏆' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]
 
