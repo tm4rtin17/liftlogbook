@@ -52,7 +52,7 @@ The easiest way to run LiftLogbook is with Docker Compose.
 
 ```bash
 # 1. Clone the repo and enter the directory
-git clone https://github.com/tm4rtin17/liftlogbook.git
+git clone https://github.com/tm4rtin17/liftlogbook
 cd liftlogbook
 
 # 2. Create a .env file with a secure secret
