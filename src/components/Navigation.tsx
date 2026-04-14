@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { Logo } from './Logo'
 
 type Tab = 'log' | 'history' | 'analytics' | 'prs' | 'settings'
 
@@ -25,8 +26,7 @@ export function Navigation({ activeTab, onTabChange }: Props) {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col w-56 shrink-0 border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-6 px-3 gap-1">
         <div className="px-3 mb-6">
-          <h1 className="text-xl font-bold text-brand-700 dark:text-brand-400">LiftLogbook</h1>
-          <p className="text-xs text-slate-400 dark:text-zinc-500">Track your progress</p>
+          <Logo iconSize={32} />
         </div>
 
         {tabs.map((t) => (

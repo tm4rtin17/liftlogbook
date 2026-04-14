@@ -1,4 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#0369a1"/>
-  <text y=".9em" font-size="80" x="10">🏋️</text>
+  <rect width="100" height="100" rx="20" fill="#0284c7"/>
+  <!-- Left outer plate -->
+  <rect x="9" y="26" width="20" height="48" rx="6" fill="white"/>
+  <!-- Left collar -->
+  <rect x="30" y="36" width="10" height="28" rx="4" fill="white" fill-opacity="0.75"/>
+  <!-- Bar -->
+  <rect x="40" y="44" width="20" height="12" rx="5" fill="white" fill-opacity="0.6"/>
+  <!-- Right collar -->
+  <rect x="60" y="36" width="10" height="28" rx="4" fill="white" fill-opacity="0.75"/>
+  <!-- Right outer plate -->
+  <rect x="71" y="26" width="20" height="48" rx="6" fill="white"/>
 </svg>

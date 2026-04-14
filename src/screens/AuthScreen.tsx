@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
+import { Logo } from '../components/Logo'
 
 type Mode = 'login' | 'register'
 
@@ -52,10 +53,8 @@ export function AuthScreen() {
 
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🏋️</div>
-          <h1 className="text-2xl font-bold text-brand-700 dark:text-brand-400">LiftLogbook</h1>
-          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Track your progress</p>
+        <div className="flex justify-center mb-8">
+          <Logo iconSize={52} stacked />
         </div>
 
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg border border-slate-200 dark:border-zinc-700 p-6">
