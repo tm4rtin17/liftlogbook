@@ -205,6 +205,14 @@ These are self-contained, low-risk changes that are easy to pick up without deep
 
 ---
 
+## Contributors
+
+Thanks to everyone who has contributed to LiftLogbook!
+
+[![Contributors](https://contrib.rocks/image?repo=tm4rtin17/liftlogbook)](https://github.com/tm4rtin17/liftlogbook/graphs/contributors)
+
+---
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
