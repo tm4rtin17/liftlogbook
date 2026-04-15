@@ -8,6 +8,7 @@ import { Settings } from './components/Settings'
 import { AuthScreen } from './screens/AuthScreen'
 import { useStore } from './hooks/useStore'
 import { useAuth } from './contexts/AuthContext'
+import { Logo } from './components/Logo'
 
 type Tab = 'log' | 'history' | 'analytics' | 'prs' | 'settings'
 
@@ -45,7 +46,7 @@ function AppShell() {
       <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between px-4 pt-4 pb-2">
-          <h1 className="text-lg font-bold text-brand-700 dark:text-brand-400">LiftLogbook</h1>
+          <Logo iconSize={32} />
         </header>
 
         <main className="flex-1 px-4 pt-2 pb-24 lg:px-8 lg:py-8 max-w-3xl w-full mx-auto">
