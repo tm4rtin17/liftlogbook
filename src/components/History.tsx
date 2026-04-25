@@ -87,8 +87,8 @@ export function History({
                   >
                     <div className="flex flex-col gap-1 min-w-0">
                       <span className="font-semibold text-slate-800 dark:text-zinc-100">{workout.name}</span>
-                      <span className="text-xs text-slate-400 dark:text-zinc-500">
-                        {format(parseISO(workout.date), 'EEEE, MMMM d')}
+                      <span className="text-xs text-slate-400 dark:text-zinc-500 truncate">
+                        {format(parseISO(workout.date), 'EEE, MMM d')}
                       </span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {muscleGroups.map((mg) => (
@@ -112,6 +112,11 @@ export function History({
 
                   {isExpanded && (
                     <div className="border-t border-slate-100 dark:border-zinc-800 px-4 pb-3 pt-3 bg-slate-50 dark:bg-zinc-800/40 flex flex-col gap-3">
+                      {workout.notes && (
+                        <p className="text-sm italic text-slate-500 dark:text-zinc-400 border-l-2 border-brand-400 pl-3">
+                          {workout.notes}
+                        </p>
+                      )}
                       {workout.exercises.map((we) => {
                         const ex = exerciseMap.get(we.exerciseId)
                         if (!ex) return null

@@ -43,6 +43,7 @@ export function WorkoutLogger({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [notes, setNotes] = useState(existingWorkout?.notes ?? '')
 
   const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
 
@@ -108,11 +109,13 @@ export function WorkoutLogger({
         date,
         name: name.trim() || format(new Date(date + 'T12:00:00'), 'EEEE, MMM d'),
         exercises: validExercises,
+        notes: notes.trim() || undefined,
       })
       setSaved(true)
       if (!existingWorkout) {
         setWorkoutExercises([])
         setName('')
+        setNotes('')
         setDate(today)
         setTimeout(() => setSaved(false), 2000)
       }
@@ -134,7 +137,7 @@ export function WorkoutLogger({
   return (
     <div className="flex flex-col gap-4">
       {/* Header fields */}
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
         <div className="flex-1">
           <Input
             label="Workout Name"
@@ -143,14 +146,29 @@ export function WorkoutLogger({
             onChange={(e) => setName(e.target.value)}
           />
         </div>
-        <div className="w-40">
+        <div className="w-full md:w-40 overflow-hidden">
           <Input
             label="Date"
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            className="appearance-none md:text-sm"
           />
         </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1">
+          Notes
+        </label>
+        <textarea
+          rows={2}
+          placeholder="How did it feel? (optional)"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="w-full rounded-lg border border-slate-300 dark:border-zinc-600 px-3 py-2 text-base bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 outline-none resize-none"
+        />
       </div>
 
       {/* Bodyweight notice */}
@@ -164,7 +182,7 @@ export function WorkoutLogger({
       {workoutExercises.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-700 py-12 flex flex-col items-center gap-3 text-slate-400">
           <span className="text-3xl">🏋️</span>
-          <p className="text-sm">No exercises yet</p>
+          <p className="md:text-sm">No exercises yet</p>
           <Button onClick={() => setPickerOpen(true)}>Add Exercise</Button>
         </div>
       ) : (
@@ -351,7 +369,7 @@ function SetRow({ index, set, weightUnit, bodyweightLbs, isBodyweightExercise, o
           placeholder={isBodyweightExercise ? '+0' : '0'}
           onBlur={(e) => onUpdate('weight', e.target.value)}
           onChange={(e) => onUpdate('weight', e.target.value)}
-          className="w-full rounded-lg border border-slate-300 dark:border-zinc-600 px-2 py-1.5 text-sm text-center
+          className="w-full rounded-lg border border-slate-300 dark:border-zinc-600 px-2 py-1.5 text-base text-center
             bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100
             focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 outline-none"
         />
@@ -369,7 +387,7 @@ function SetRow({ index, set, weightUnit, bodyweightLbs, isBodyweightExercise, o
         placeholder="0"
         onBlur={(e) => onUpdate('reps', e.target.value)}
         onChange={(e) => onUpdate('reps', e.target.value)}
-        className="w-full rounded-lg border border-slate-300 dark:border-zinc-600 px-2 py-1.5 text-sm text-center
+        className="w-full rounded-lg border border-slate-300 dark:border-zinc-600 px-2 py-1.5 text-base text-center
           bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100
           focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 outline-none"
       />

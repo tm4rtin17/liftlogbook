@@ -1,4 +1,4 @@
-import { startOfWeek, format, parseISO, isWithinInterval, subWeeks } from 'date-fns'
+import { startOfWeek, format, parseISO, isWithinInterval, subWeeks, addDays } from 'date-fns'
 import { Exercise, MuscleGroup, Workout, WorkoutSet } from '../types'
 
 const KG_TO_LBS = 2.20462
@@ -103,7 +103,7 @@ export function weeklyVolumeForMuscleGroup(
   )
 }
 
-function buildWeeklyBuckets(
+export function buildWeeklyBuckets(
   workouts: Workout[],
   weeks: number,
   volumeFn: (w: Workout) => number
@@ -113,14 +113,10 @@ function buildWeeklyBuckets(
 
   for (let i = weeks - 1; i >= 0; i--) {
     const weekStart = startOfWeek(subWeeks(now, i), { weekStartsOn: 1 }) // Monday
-    const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekEnd.getDate() + 6)
+    const weekEnd = addDays(weekStart, 6)
 
     const volume = workouts
-      .filter((w) => {
-        const d = parseISO(w.date)
-        return isWithinInterval(d, { start: weekStart, end: weekEnd })
-      })
+      .filter((w) => isWithinInterval(parseISO(w.date), { start: weekStart, end: weekEnd }))
       .reduce((sum, w) => sum + volumeFn(w), 0)
 
     buckets.push({
@@ -131,6 +127,182 @@ function buildWeeklyBuckets(
   }
 
   return buckets
+}
+
+// --- Streak & summary stats ---
+
+export function currentStreak(workouts: Workout[]): number {
+  const dateSet = new Set(workouts.map((w) => w.date))
+  let streak = 0
+  let current = new Date()
+  current.setHours(0, 0, 0, 0)
+  while (dateSet.has(format(current, 'yyyy-MM-dd'))) {
+    streak++
+    current = addDays(current, -1)
+  }
+  return streak
+}
+
+export function longestStreak(workouts: Workout[]): number {
+  const dates = [...new Set(workouts.map((w) => w.date))].sort()
+  if (dates.length === 0) return 0
+  let max = 1
+  let run = 1
+  for (let i = 1; i < dates.length; i++) {
+    const diff = (parseISO(dates[i]).getTime() - parseISO(dates[i - 1]).getTime()) / 86400000
+    if (diff === 1) {
+      run++
+      if (run > max) max = run
+    } else {
+      run = 1
+    }
+  }
+  return max
+}
+
+export function avgWorkoutsPerWeek(workouts: Workout[]): number {
+  if (workouts.length === 0) return 0
+  const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date))
+  const diffDays =
+    (parseISO(sorted[sorted.length - 1].date).getTime() - parseISO(sorted[0].date).getTime()) /
+    86400000
+  const weeks = Math.max(1, Math.floor(diffDays / 7) + 1)
+  return Math.round((workouts.length / weeks) * 10) / 10
+}
+
+export function volumeChangePercent(
+  workouts: Workout[],
+  userBodyweightLbs = 0
+): number | null {
+  const now = new Date()
+  const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 })
+  const thisWeekEnd = addDays(thisWeekStart, 6)
+  const lastWeekStart = subWeeks(thisWeekStart, 1)
+  const lastWeekEnd = addDays(lastWeekStart, 6)
+
+  const sumVol = (start: Date, end: Date) =>
+    workouts
+      .filter((w) => isWithinInterval(parseISO(w.date), { start, end }))
+      .reduce((s, w) => s + workoutTotalVolume(w, userBodyweightLbs), 0)
+
+  const thisVol = sumVol(thisWeekStart, thisWeekEnd)
+  const lastVol = sumVol(lastWeekStart, lastWeekEnd)
+
+  if (lastVol === 0 && thisVol === 0) return null
+  if (lastVol === 0) return Infinity
+  return Math.round(((thisVol - lastVol) / lastVol) * 100)
+}
+
+// --- Per-exercise weekly trend functions ---
+
+export function weekly1RMForExercise(
+  workouts: Workout[],
+  exerciseId: string,
+  weeks = 12,
+  userBodyweightLbs = 0
+): { weekLabel: string; weekStart: string; oneRM: number }[] {
+  const now = new Date()
+  return Array.from({ length: weeks }, (_, i) => {
+    const weekStart = startOfWeek(subWeeks(now, weeks - 1 - i), { weekStartsOn: 1 })
+    const weekEnd = addDays(weekStart, 6)
+    let best = 0
+    for (const w of workouts) {
+      if (!isWithinInterval(parseISO(w.date), { start: weekStart, end: weekEnd })) continue
+      for (const we of w.exercises) {
+        if (we.exerciseId !== exerciseId) continue
+        for (const s of we.sets) {
+          const eff = effectiveSetWeight(s, userBodyweightLbs)
+          const oneRM = eff * (1 + s.reps / 30)
+          if (oneRM > best) best = oneRM
+        }
+      }
+    }
+    return {
+      weekLabel: format(weekStart, 'MMM d'),
+      weekStart: weekStart.toISOString(),
+      oneRM: Math.round(best * 10) / 10,
+    }
+  })
+}
+
+export function weeklyPeakWeightForExercise(
+  workouts: Workout[],
+  exerciseId: string,
+  weeks = 12,
+  userBodyweightLbs = 0
+): { weekLabel: string; weekStart: string; peakWeight: number }[] {
+  const now = new Date()
+  return Array.from({ length: weeks }, (_, i) => {
+    const weekStart = startOfWeek(subWeeks(now, weeks - 1 - i), { weekStartsOn: 1 })
+    const weekEnd = addDays(weekStart, 6)
+    let peak = 0
+    for (const w of workouts) {
+      if (!isWithinInterval(parseISO(w.date), { start: weekStart, end: weekEnd })) continue
+      for (const we of w.exercises) {
+        if (we.exerciseId !== exerciseId) continue
+        for (const s of we.sets) {
+          const eff = effectiveSetWeight(s, userBodyweightLbs)
+          if (eff > peak) peak = eff
+        }
+      }
+    }
+    return {
+      weekLabel: format(weekStart, 'MMM d'),
+      weekStart: weekStart.toISOString(),
+      peakWeight: Math.round(peak * 10) / 10,
+    }
+  })
+}
+
+// --- Weekly set count functions ---
+
+export function weeklySetCountForMuscleGroup(
+  workouts: Workout[],
+  muscleGroup: MuscleGroup,
+  exercises: Exercise[],
+  weeks = 12
+): { weekLabel: string; weekStart: string; sets: number }[] {
+  const groupIds = new Set(exercises.filter((e) => e.muscleGroup === muscleGroup).map((e) => e.id))
+  const now = new Date()
+  return Array.from({ length: weeks }, (_, i) => {
+    const weekStart = startOfWeek(subWeeks(now, weeks - 1 - i), { weekStartsOn: 1 })
+    const weekEnd = addDays(weekStart, 6)
+    let sets = 0
+    for (const w of workouts) {
+      if (!isWithinInterval(parseISO(w.date), { start: weekStart, end: weekEnd })) continue
+      for (const we of w.exercises) {
+        if (groupIds.has(we.exerciseId)) sets += we.sets.length
+      }
+    }
+    return { weekLabel: format(weekStart, 'MMM d'), weekStart: weekStart.toISOString(), sets }
+  })
+}
+
+export function weeklySetCountForAll(
+  workouts: Workout[],
+  weeks = 12
+): { weekLabel: string; weekStart: string; sets: number }[] {
+  const now = new Date()
+  return Array.from({ length: weeks }, (_, i) => {
+    const weekStart = startOfWeek(subWeeks(now, weeks - 1 - i), { weekStartsOn: 1 })
+    const weekEnd = addDays(weekStart, 6)
+    let sets = 0
+    for (const w of workouts) {
+      if (!isWithinInterval(parseISO(w.date), { start: weekStart, end: weekEnd })) continue
+      for (const we of w.exercises) sets += we.sets.length
+    }
+    return { weekLabel: format(weekStart, 'MMM d'), weekStart: weekStart.toISOString(), sets }
+  })
+}
+
+export function exerciseSessionCounts(workouts: Workout[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const w of workouts) {
+    for (const we of w.exercises) {
+      map.set(we.exerciseId, (map.get(we.exerciseId) ?? 0) + 1)
+    }
+  }
+  return map
 }
 
 export interface PersonalRecord {

@@ -10,16 +10,28 @@ import {
   Cell,
   PieChart,
   Pie,
+  LineChart,
+  Line,
 } from 'recharts'
 import { Exercise, MuscleGroup, Workout } from '../types'
 import { MUSCLE_GROUP_COLORS, MUSCLE_GROUPS } from '../data/exercises'
 import {
   toDisplayWeight,
+  workoutTotalVolume,
   weeklyVolumeForExercise,
   weeklyVolumeForMuscleGroup,
   weeklyVolumeForAllMuscleGroups,
   totalVolumeByMuscleGroup,
   totalVolumeByExercise,
+  currentStreak,
+  longestStreak,
+  avgWorkoutsPerWeek,
+  volumeChangePercent,
+  weekly1RMForExercise,
+  weeklyPeakWeightForExercise,
+  weeklySetCountForMuscleGroup,
+  weeklySetCountForAll,
+  exerciseSessionCounts,
 } from '../utils/analytics'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -38,11 +50,18 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
   const isDark = theme === 'dark'
   const [mode, setMode] = useState<ViewMode>('overview')
   const [selectedGroup, setSelectedGroup] = useState<MuscleGroup | 'All'>('All')
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string>('')
+  const [sortMode, setSortMode] = useState<'volume' | 'frequency'>('volume')
+  const [muscleVolumeMode, setMuscleVolumeMode] = useState<'volume' | 'sets'>('volume')
   const [weeks, setWeeks] = useState(12)
 
-  const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
+  const defaultExerciseId = useMemo(() => {
+    if (workouts.length === 0) return ''
+    const sorted = [...workouts].sort((a, b) => b.date.localeCompare(a.date))
+    return sorted[0].exercises[0]?.exerciseId ?? ''
+  }, [workouts])
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string>(defaultExerciseId)
 
+  const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
   const bwLbs = bodyweightLbs ?? 0
 
   const muscleGroupVolume = useMemo(
@@ -53,6 +72,17 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
     () => totalVolumeByExercise(workouts, exercises, bwLbs),
     [workouts, exercises, bwLbs]
   )
+  const sessionCounts = useMemo(() => exerciseSessionCounts(workouts), [workouts])
+
+  const sortedExerciseVolumes = useMemo(() => {
+    if (sortMode === 'volume') return exerciseVolumes
+    return [...exerciseVolumes].sort((a, b) => {
+      const aId = exercises.find((e) => e.name === a.exerciseName)?.id ?? ''
+      const bId = exercises.find((e) => e.name === b.exerciseName)?.id ?? ''
+      return (sessionCounts.get(bId) ?? 0) - (sessionCounts.get(aId) ?? 0)
+    })
+  }, [exerciseVolumes, sortMode, sessionCounts, exercises])
+
   const weeklyGroupData = useMemo(
     () =>
       (selectedGroup === 'All'
@@ -64,11 +94,35 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
       })),
     [workouts, selectedGroup, exercises, weeks, weightUnit, bwLbs]
   )
+
+  const weeklyGroupSetsData = useMemo((): { weekLabel: string; weekStart: string; sets: number }[] => {
+    if (muscleVolumeMode !== 'sets') return []
+    return selectedGroup === 'All'
+      ? weeklySetCountForAll(workouts, weeks)
+      : weeklySetCountForMuscleGroup(workouts, selectedGroup, exercises, weeks)
+  }, [workouts, selectedGroup, exercises, weeks, muscleVolumeMode])
+
   const weeklyExerciseData = useMemo(() => {
     if (!selectedExerciseId) return []
     return weeklyVolumeForExercise(workouts, selectedExerciseId, weeks, bwLbs).map((d) => ({
       ...d,
       volume: toDisplayWeight(d.volume, weightUnit),
+    }))
+  }, [workouts, selectedExerciseId, weeks, weightUnit, bwLbs])
+
+  const weekly1RMData = useMemo((): { weekLabel: string; weekStart: string; oneRM: number }[] => {
+    if (!selectedExerciseId) return []
+    return weekly1RMForExercise(workouts, selectedExerciseId, weeks, bwLbs).map((d) => ({
+      ...d,
+      oneRM: toDisplayWeight(d.oneRM, weightUnit),
+    }))
+  }, [workouts, selectedExerciseId, weeks, weightUnit, bwLbs])
+
+  const weeklyPeakData = useMemo((): { weekLabel: string; weekStart: string; peakWeight: number }[] => {
+    if (!selectedExerciseId) return []
+    return weeklyPeakWeightForExercise(workouts, selectedExerciseId, weeks, bwLbs).map((d) => ({
+      ...d,
+      peakWeight: toDisplayWeight(d.peakWeight, weightUnit),
     }))
   }, [workouts, selectedExerciseId, weeks, weightUnit, bwLbs])
 
@@ -97,14 +151,26 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
   if (workouts.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-slate-400">
-        <span className="text-5xl">📊</span>
-        <p className="text-base font-medium">No data yet</p>
-        <p className="text-sm">Log some workouts to see your analytics</p>
+        <span className="text-5xl">🏋️</span>
+        <p className="text-lg font-semibold text-slate-600 dark:text-zinc-300">No workouts yet</p>
+        <p className="text-sm text-center max-w-xs">
+          Start logging workouts to unlock your full analytics dashboard — streaks, trends, and more.
+        </p>
       </div>
     )
   }
 
   const totalVolume = muscleGroupVolume.reduce((s, d) => s + d.volume, 0)
+  const totalPieValue = pieData.reduce((s, d) => s + d.value, 0)
+
+  const balanceVol = (groups: MuscleGroup[]) =>
+    muscleGroupVolume
+      .filter((d) => groups.includes(d.muscleGroup))
+      .reduce((s, d) => s + d.volume, 0)
+  const pushVol = balanceVol(['Chest', 'Shoulders', 'Triceps'])
+  const pullVol = balanceVol(['Back', 'Biceps'])
+  const upperVol = balanceVol(['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'])
+  const lowerVol = balanceVol(['Legs', 'Glutes', 'Calves'])
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,11 +198,12 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
       {/* Overview */}
       {mode === 'overview' && (
         <div className="flex flex-col gap-6">
-          <StatCards workouts={workouts} weightUnit={weightUnit} />
+
+          <StatCards workouts={workouts} weightUnit={weightUnit} bodyweightLbs={bwLbs} />
 
           {pieData.length > 0 && (
             <Card title="Volume by Muscle Group">
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -144,11 +211,7 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
-                    label={({ name, percent }) =>
-                      percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ''
-                    }
-                    labelLine={false}
+                    outerRadius={90}
                   >
                     {pieData.map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
@@ -160,37 +223,84 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
                   />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center mt-3">
+                {pieData.map((entry) => (
+                  <div key={entry.name} className="flex items-center gap-1.5 text-xs">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: entry.color }}
+                    />
+                    <span className="text-slate-600 dark:text-zinc-400">{entry.name}</span>
+                    <span className="text-slate-400 dark:text-zinc-500">
+                      {totalPieValue > 0 ? ((entry.value / totalPieValue) * 100).toFixed(0) : 0}%
+                    </span>
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 
-          {exerciseVolumes.length > 0 && (
-            <Card title="Top Exercises (all time)">
-              <div className="flex flex-col gap-2">
-                {exerciseVolumes.slice(0, 8).map((ev) => {
-                  const pct = totalVolume > 0 ? ev.volume / totalVolume : 0
-                  const dispVol = toDisplayWeight(ev.volume, weightUnit)
-                  return (
-                    <div key={ev.exerciseName} className="flex flex-col gap-0.5">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-slate-700 dark:text-zinc-300">{ev.exerciseName}</span>
-                        <span className="text-slate-400 dark:text-zinc-500 text-xs">
-                          {dispVol.toLocaleString()} {weightUnit}
-                        </span>
-                      </div>
-                      <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${pct * 100}%`,
-                            backgroundColor: MUSCLE_GROUP_COLORS[ev.muscleGroup],
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
+          <Card title="Training Balance">
+            <div className="flex flex-col gap-4">
+              <BalanceBar leftLabel="Push" rightLabel="Pull" leftValue={pushVol} rightValue={pullVol} />
+              <BalanceBar leftLabel="Upper" rightLabel="Lower" leftValue={upperVol} rightValue={lowerVol} />
+            </div>
+          </Card>
+
+          {sortedExerciseVolumes.length > 0 && (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Sort by
+                </span>
+                <div className="flex gap-1">
+                  {(['volume', 'frequency'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setSortMode(m)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        sortMode === m
+                          ? 'bg-brand-600 text-white'
+                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                      }`}
+                    >
+                      {m === 'volume' ? 'Volume' : 'Frequency'}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </Card>
+              <Card title="Top Exercises (all time)">
+                <div className="flex flex-col gap-2">
+                  {sortedExerciseVolumes.slice(0, 8).map((ev) => {
+                    const exId = exercises.find((e) => e.name === ev.exerciseName)?.id ?? ''
+                    const pct = totalVolume > 0 ? ev.volume / totalVolume : 0
+                    const dispVol = toDisplayWeight(ev.volume, weightUnit)
+                    const sessions = sessionCounts.get(exId) ?? 0
+                    return (
+                      <div key={ev.exerciseName} className="flex flex-col gap-0.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-slate-700 dark:text-zinc-300">{ev.exerciseName}</span>
+                          <span className="text-slate-400 dark:text-zinc-500 text-xs">
+                            {sortMode === 'frequency'
+                              ? `${sessions} sessions`
+                              : `${dispVol.toLocaleString()} ${weightUnit}`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${pct * 100}%`,
+                              backgroundColor: MUSCLE_GROUP_COLORS[ev.muscleGroup],
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </Card>
+            </>
           )}
         </div>
       )}
@@ -229,15 +339,43 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
 
           <WeeksSelector value={weeks} onChange={setWeeks} />
 
-          <Card title={`${selectedGroup === 'All' ? 'All Muscle Groups' : selectedGroup} — Weekly Volume`}>
-            <VolumeBarChart
-              data={weeklyGroupData}
-              weightUnit={weightUnit}
-              color={selectedGroup === 'All' ? '#64748b' : MUSCLE_GROUP_COLORS[selectedGroup]}
-              axisColor={axisColor}
-              gridColor={gridColor}
-              tooltipStyle={tooltipStyle}
-            />
+          <div className="flex gap-1.5">
+            {(['volume', 'sets'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMuscleVolumeMode(m)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  muscleVolumeMode === m
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                }`}
+              >
+                {m === 'volume' ? 'Volume' : 'Sets'}
+              </button>
+            ))}
+          </div>
+
+          <Card
+            title={`${selectedGroup === 'All' ? 'All Muscle Groups' : selectedGroup} — Weekly ${muscleVolumeMode === 'sets' ? 'Sets' : 'Volume'}`}
+          >
+            {muscleVolumeMode === 'sets' ? (
+              <SetsBarChart
+                data={weeklyGroupSetsData}
+                color={selectedGroup === 'All' ? '#64748b' : MUSCLE_GROUP_COLORS[selectedGroup]}
+                axisColor={axisColor}
+                gridColor={gridColor}
+                tooltipStyle={tooltipStyle}
+              />
+            ) : (
+              <VolumeBarChart
+                data={weeklyGroupData}
+                weightUnit={weightUnit}
+                color={selectedGroup === 'All' ? '#64748b' : MUSCLE_GROUP_COLORS[selectedGroup]}
+                axisColor={axisColor}
+                gridColor={gridColor}
+                tooltipStyle={tooltipStyle}
+              />
+            )}
           </Card>
 
           {selectedGroup !== 'All' && (
@@ -288,6 +426,75 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
                   tooltipStyle={tooltipStyle}
                 />
               </Card>
+
+              {weekly1RMData.some((d) => d.oneRM > 0) && (
+                <Card title={`${exerciseMap.get(selectedExerciseId)?.name ?? ''} — Estimated 1RM Trend`}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={weekly1RMData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                      <XAxis
+                        dataKey="weekLabel"
+                        tick={{ fontSize: 11, fill: axisColor }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: axisColor }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={40}
+                        tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v)}
+                      />
+                      <Tooltip
+                        formatter={(val: number) => [`${val.toFixed(1)} ${weightUnit}`, 'Est. 1RM']}
+                        contentStyle={tooltipStyle}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="oneRM"
+                        stroke="#f59e0b"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Card>
+              )}
+
+              {weeklyPeakData.some((d) => d.peakWeight > 0) && (
+                <Card title={`${exerciseMap.get(selectedExerciseId)?.name ?? ''} — Session Peak Weight`}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={weeklyPeakData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                      <XAxis
+                        dataKey="weekLabel"
+                        tick={{ fontSize: 11, fill: axisColor }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: axisColor }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={40}
+                        tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v)}
+                      />
+                      <Tooltip
+                        formatter={(val: number) => [`${val.toFixed(1)} ${weightUnit}`, 'Peak Weight']}
+                        contentStyle={tooltipStyle}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="peakWeight"
+                        stroke="#8b5cf6"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Card>
+              )}
+
               <ExerciseSummary
                 exerciseId={selectedExerciseId}
                 workouts={workouts}
@@ -304,24 +511,64 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
 
 // --- Sub-components ---
 
-function StatCards({ workouts, weightUnit }: { workouts: Workout[]; weightUnit: 'lbs' | 'kg' }) {
-  const totalVol = workouts.reduce(
-    (s, w) =>
-      s + w.exercises.flatMap((we) => we.sets).reduce((ss, st) => ss + st.weight * st.reps, 0),
-    0
-  )
+function StatCards({
+  workouts,
+  weightUnit,
+  bodyweightLbs,
+}: {
+  workouts: Workout[]
+  weightUnit: 'lbs' | 'kg'
+  bodyweightLbs?: number
+}) {
+  const bwLbs = bodyweightLbs ?? 0
+  const totalVol = workouts.reduce((s, w) => s + workoutTotalVolume(w, bwLbs), 0)
   const totalSets = workouts.reduce(
     (s, w) => s + w.exercises.reduce((ss, we) => ss + we.sets.length, 0),
     0
   )
+  const streak = currentStreak(workouts)
+  const longest = longestStreak(workouts)
+  const avgWeek = avgWorkoutsPerWeek(workouts)
+  const volChange = volumeChangePercent(workouts, bwLbs)
+
+  let volChangeText: string
+  let volChangeClass: string
+  if (volChange === null) {
+    volChangeText = '—'
+    volChangeClass = ''
+  } else if (!isFinite(volChange)) {
+    volChangeText = 'New!'
+    volChangeClass = 'text-green-500 dark:text-green-400'
+  } else if (volChange > 0) {
+    volChangeText = `+${volChange}%`
+    volChangeClass = 'text-green-500 dark:text-green-400'
+  } else if (volChange < 0) {
+    volChangeText = `${volChange}%`
+    volChangeClass = 'text-red-500 dark:text-red-400'
+  } else {
+    volChangeText = '0%'
+    volChangeClass = ''
+  }
+
   return (
-    <div className="grid grid-cols-3 gap-3">
-      <StatCard label="Workouts" value={workouts.length.toString()} />
-      <StatCard label="Total Sets" value={totalSets.toLocaleString()} />
-      <StatCard
-        label={`Volume (${weightUnit})`}
-        value={(toDisplayWeight(totalVol, weightUnit) / 1000).toFixed(1) + 'k'}
-      />
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard label="Workouts" value={workouts.length.toString()} />
+        <StatCard label="Total Sets" value={totalSets.toLocaleString()} />
+        <StatCard
+          label={`Volume (${weightUnit})`}
+          value={(toDisplayWeight(totalVol, weightUnit) / 1000).toFixed(1) + 'k'}
+        />
+        <StatCard label="Streak" value={streak > 0 ? `${streak}d` : '—'} />
+        <StatCard label="Best Streak" value={longest > 0 ? `${longest}d` : '—'} />
+        <StatCard label="Avg/Week" value={avgWeek.toFixed(1)} />
+      </div>
+      <div className="rounded-xl bg-brand-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-900/50 px-4 py-3 flex items-center justify-between">
+        <p className="text-xs text-slate-500 dark:text-zinc-400">This vs Last Week</p>
+        <p className={`text-xl font-bold ${volChangeClass || 'text-brand-700 dark:text-brand-400'}`}>
+          {volChangeText}
+        </p>
+      </div>
     </div>
   )
 }
@@ -331,6 +578,41 @@ function StatCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl bg-brand-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-900/50 px-3 py-3 text-center">
       <p className="text-xl font-bold text-brand-700 dark:text-brand-400">{value}</p>
       <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{label}</p>
+    </div>
+  )
+}
+
+function BalanceBar({
+  leftLabel,
+  rightLabel,
+  leftValue,
+  rightValue,
+}: {
+  leftLabel: string
+  rightLabel: string
+  leftValue: number
+  rightValue: number
+}) {
+  if (leftValue === 0 || rightValue === 0) {
+    return <p className="text-sm text-slate-400 dark:text-zinc-500 text-center">No data</p>
+  }
+  const total = leftValue + rightValue
+  const leftPct = Math.round((leftValue / total) * 100)
+  const rightPct = 100 - leftPct
+  return (
+    <div>
+      <div className="flex justify-between text-xs text-slate-500 dark:text-zinc-400 mb-1.5">
+        <span>
+          {leftLabel} <span className="font-semibold">{leftPct}%</span>
+        </span>
+        <span>
+          <span className="font-semibold">{rightPct}%</span> {rightLabel}
+        </span>
+      </div>
+      <div className="flex h-3 rounded-full overflow-hidden">
+        <div className="bg-brand-600 transition-all" style={{ width: `${leftPct}%` }} />
+        <div className="bg-zinc-400 dark:bg-zinc-600 flex-1" />
+      </div>
     </div>
   )
 }
@@ -382,6 +664,46 @@ function VolumeBarChart({ data, weightUnit, color, axisColor, gridColor, tooltip
           contentStyle={tooltipStyle}
         />
         <Bar dataKey="volume" fill={color} radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+interface SetsChartProps {
+  data: { weekLabel: string; sets: number }[]
+  color: string
+  axisColor: string
+  gridColor: string
+  tooltipStyle: React.CSSProperties
+}
+
+function SetsBarChart({ data, color, axisColor, gridColor, tooltipStyle }: SetsChartProps) {
+  if (data.every((d) => d.sets === 0)) {
+    return <p className="text-center text-sm text-slate-400 py-8">No data in this period</p>
+  }
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis
+          dataKey="weekLabel"
+          tick={{ fontSize: 11, fill: axisColor }}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: axisColor }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v)}
+          width={40}
+        />
+        <Tooltip
+          formatter={(val: number) => [val, 'Sets']}
+          cursor={{ fill: gridColor }}
+          contentStyle={tooltipStyle}
+        />
+        <Bar dataKey="sets" fill={color} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )
