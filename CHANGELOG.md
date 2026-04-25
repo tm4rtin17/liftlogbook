@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.5.0] - 2026-04-24
+
 ### Changed
 - Analytics: smart default exercise selection based on most recent workout
 - Analytics: added weekly 1RM trend chart and weekly peak weight chart per exercise
@@ -71,7 +75,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-[Unreleased]: https://github.com/tm4rtin17/liftlogbook/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tm4rtin17/liftlogbook/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tm4rtin17/liftlogbook/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tm4rtin17/liftlogbook/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tm4rtin17/liftlogbook/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tm4rtin17/liftlogbook/compare/v0.1.0...v0.2.0
