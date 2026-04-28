@@ -20,8 +20,9 @@ data/
 server/.env
 server/.env.local
 
-# Claude Code local config
+# Claude Code local config (agents, skills, settings — local AI tooling only)
 .claude/
+CLAUDE.md
 
 # Vite / editor
 *.local
