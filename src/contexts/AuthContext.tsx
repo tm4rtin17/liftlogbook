@@ -4,6 +4,7 @@ import { api, getToken, setToken, clearToken, setUnauthorizedHandler } from '../
 interface User {
   id: string
   email: string
+  isAdmin: boolean
 }
 
 interface AuthContextValue {

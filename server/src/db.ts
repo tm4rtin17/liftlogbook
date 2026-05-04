@@ -16,7 +16,8 @@ db.exec(`
     id          TEXT PRIMARY KEY,
     email       TEXT UNIQUE NOT NULL COLLATE NOCASE,
     password_hash TEXT NOT NULL,
-    created_at  TEXT NOT NULL
+    created_at  TEXT NOT NULL,
+    is_admin    INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS workouts (
@@ -45,5 +46,14 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `)
+
+// Migrate: add is_admin column to existing databases
+const hasAdminCol = (db.prepare("SELECT COUNT(*) as c FROM pragma_table_info('users') WHERE name='is_admin'").get() as { c: number }).c
+if (!hasAdminCol) {
+  db.exec("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+}
+
+// Ensure tm4rtin17@gmail.com is admin (idempotent)
+db.prepare("UPDATE users SET is_admin = 1 WHERE email = 'tm4rtin17@gmail.com'").run()
 
 export default db

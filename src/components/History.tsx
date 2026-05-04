@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfWeek, endOfWeek, addWeeks, isWithinInterval } from 'date-fns'
 import { Exercise, MuscleGroup, Workout } from '../types'
 import { toDisplayWeight, workoutTotalVolume } from '../utils/analytics'
 import { MuscleGroupBadge } from './ui/Badge'
@@ -30,10 +30,15 @@ export function History({
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [weekOffset, setWeekOffset] = useState(0)
 
-  const sorted = [...workouts].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  )
+  const weekStart = startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 })
+  const weekEnd = endOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 })
+  const weekLabel = `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')}`
+
+  const weekWorkouts = [...workouts]
+    .filter((w) => isWithinInterval(parseISO(w.date), { start: weekStart, end: weekEnd }))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
 
@@ -47,25 +52,19 @@ export function History({
     )
   }
 
-  const byMonth = new Map<string, Workout[]>()
-  for (const w of sorted) {
-    const key = format(parseISO(w.date), 'MMMM yyyy')
-    const arr = byMonth.get(key) ?? []
-    arr.push(w)
-    byMonth.set(key, arr)
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <WorkoutHeatmap workouts={workouts} weightUnit={weightUnit} />
 
-      {Array.from(byMonth.entries()).map(([month, mWorkouts]) => (
-        <div key={month}>
-          <h2 className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
-            {month}
-          </h2>
+      <div>
+        <h2 className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
+          {weekOffset === 0 ? `This Week · ${weekLabel}` : weekLabel}
+        </h2>
+        {weekWorkouts.length === 0 ? (
+          <p className="text-sm text-slate-400 dark:text-zinc-500 py-6 text-center">No workouts this week</p>
+        ) : (
           <div className="flex flex-col gap-2">
-            {mWorkouts.map((workout) => {
+            {weekWorkouts.map((workout) => {
               const isExpanded = expandedId === workout.id
               const volume = workoutTotalVolume(workout, bodyweightLbs ?? 0)
               const muscleGroups = [
@@ -160,8 +159,22 @@ export function History({
               )
             })}
           </div>
-        </div>
-      ))}
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <Button variant="ghost" size="sm" onClick={() => setWeekOffset((o) => o - 1)}>
+          ← Prev Week
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={weekOffset === 0}
+          onClick={() => setWeekOffset((o) => o + 1)}
+        >
+          Next Week →
+        </Button>
+      </div>
 
       <Modal open={editingWorkout != null} onClose={() => setEditingWorkout(null)} title="Edit Workout">
         {editingWorkout && (

@@ -10,8 +10,6 @@ import {
   Cell,
   PieChart,
   Pie,
-  LineChart,
-  Line,
 } from 'recharts'
 import { Exercise, MuscleGroup, Workout } from '../types'
 import { MUSCLE_GROUP_COLORS, MUSCLE_GROUPS } from '../data/exercises'
@@ -23,10 +21,8 @@ import {
   weeklyVolumeForAllMuscleGroups,
   totalVolumeByMuscleGroup,
   totalVolumeByExercise,
-  currentStreak,
   longestStreak,
   avgWorkoutsPerWeek,
-  volumeChangePercent,
   weekly1RMForExercise,
   weeklyPeakWeightForExercise,
   weeklySetCountForMuscleGroup,
@@ -43,7 +39,16 @@ interface Props {
 }
 
 type ViewMode = 'overview' | 'muscleGroup' | 'exercise'
+type OverviewPeriod = '7d' | '2w' | '1m' | '6m' | '1y' | 'all'
 const WEEK_OPTIONS = [4, 8, 12, 24]
+const OVERVIEW_PERIOD_OPTIONS: { value: OverviewPeriod; label: string }[] = [
+  { value: '7d', label: '7D' },
+  { value: '2w', label: '2W' },
+  { value: '1m', label: '1M' },
+  { value: '6m', label: '6M' },
+  { value: '1y', label: '1Y' },
+  { value: 'all', label: 'All' },
+]
 
 export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Props) {
   const { theme } = useTheme()
@@ -53,6 +58,7 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
   const [sortMode, setSortMode] = useState<'volume' | 'frequency'>('volume')
   const [muscleVolumeMode, setMuscleVolumeMode] = useState<'volume' | 'sets'>('volume')
   const [weeks, setWeeks] = useState(12)
+  const [overviewPeriod, setOverviewPeriod] = useState<OverviewPeriod>('all')
 
   const defaultExerciseId = useMemo(() => {
     if (workouts.length === 0) return ''
@@ -72,16 +78,42 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
     () => totalVolumeByExercise(workouts, exercises, bwLbs),
     [workouts, exercises, bwLbs]
   )
-  const sessionCounts = useMemo(() => exerciseSessionCounts(workouts), [workouts])
+  const periodCutoff = useMemo(() => {
+    if (overviewPeriod === 'all') return null
+    const periodDays: Record<Exclude<OverviewPeriod, 'all'>, number> = {
+      '7d': 7, '2w': 14, '1m': 30, '6m': 180, '1y': 365,
+    }
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - periodDays[overviewPeriod])
+    return cutoff
+  }, [overviewPeriod])
 
-  const sortedExerciseVolumes = useMemo(() => {
-    if (sortMode === 'volume') return exerciseVolumes
-    return [...exerciseVolumes].sort((a, b) => {
+  const overviewWorkouts = useMemo(() => {
+    if (!periodCutoff) return workouts
+    const cutoffStr = periodCutoff.toISOString().split('T')[0]
+    return workouts.filter((w) => w.date >= cutoffStr)
+  }, [workouts, periodCutoff])
+
+  const overviewMuscleGroupVolume = useMemo(
+    () => totalVolumeByMuscleGroup(overviewWorkouts, exercises, bwLbs),
+    [overviewWorkouts, exercises, bwLbs]
+  )
+  const overviewExerciseVolumes = useMemo(
+    () => totalVolumeByExercise(overviewWorkouts, exercises, bwLbs),
+    [overviewWorkouts, exercises, bwLbs]
+  )
+  const overviewSessionCounts = useMemo(
+    () => exerciseSessionCounts(overviewWorkouts),
+    [overviewWorkouts]
+  )
+  const overviewSortedExerciseVolumes = useMemo(() => {
+    if (sortMode === 'volume') return overviewExerciseVolumes
+    return [...overviewExerciseVolumes].sort((a, b) => {
       const aId = exercises.find((e) => e.name === a.exerciseName)?.id ?? ''
       const bId = exercises.find((e) => e.name === b.exerciseName)?.id ?? ''
-      return (sessionCounts.get(bId) ?? 0) - (sessionCounts.get(aId) ?? 0)
+      return (overviewSessionCounts.get(bId) ?? 0) - (overviewSessionCounts.get(aId) ?? 0)
     })
-  }, [exerciseVolumes, sortMode, sessionCounts, exercises])
+  }, [overviewExerciseVolumes, sortMode, overviewSessionCounts, exercises])
 
   const weeklyGroupData = useMemo(
     () =>
@@ -128,14 +160,14 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
 
   const pieData = useMemo(
     () =>
-      muscleGroupVolume
+      overviewMuscleGroupVolume
         .filter((d) => d.volume > 0)
         .map((d) => ({
           name: d.muscleGroup,
           value: Math.round(toDisplayWeight(d.volume, weightUnit)),
           color: MUSCLE_GROUP_COLORS[d.muscleGroup],
         })),
-    [muscleGroupVolume, weightUnit]
+    [overviewMuscleGroupVolume, weightUnit]
   )
 
   // Chart theme colors
@@ -160,11 +192,11 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
     )
   }
 
-  const totalVolume = muscleGroupVolume.reduce((s, d) => s + d.volume, 0)
+  const totalVolume = overviewMuscleGroupVolume.reduce((s, d) => s + d.volume, 0)
   const totalPieValue = pieData.reduce((s, d) => s + d.value, 0)
 
   const balanceVol = (groups: MuscleGroup[]) =>
-    muscleGroupVolume
+    overviewMuscleGroupVolume
       .filter((d) => groups.includes(d.muscleGroup))
       .reduce((s, d) => s + d.volume, 0)
   const pushVol = balanceVol(['Chest', 'Shoulders', 'Triceps'])
@@ -199,7 +231,28 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
       {mode === 'overview' && (
         <div className="flex flex-col gap-6">
 
-          <StatCards workouts={workouts} weightUnit={weightUnit} bodyweightLbs={bwLbs} />
+          <div className="flex gap-1.5">
+            {OVERVIEW_PERIOD_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setOverviewPeriod(value)}
+                className={`flex-1 py-1 rounded-full text-xs font-medium transition-colors ${
+                  overviewPeriod === value
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <StatCards
+            workouts={overviewWorkouts}
+            allWorkouts={workouts}
+            weightUnit={weightUnit}
+            bodyweightLbs={bwLbs}
+          />
 
           {pieData.length > 0 && (
             <Card title="Volume by Muscle Group">
@@ -247,7 +300,7 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
             </div>
           </Card>
 
-          {sortedExerciseVolumes.length > 0 && (
+          {overviewSortedExerciseVolumes.length > 0 && (
             <>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-500 dark:text-zinc-400 uppercase tracking-wide">
@@ -269,13 +322,13 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
                   ))}
                 </div>
               </div>
-              <Card title="Top Exercises (all time)">
+              <Card title="Top Exercises">
                 <div className="flex flex-col gap-2">
-                  {sortedExerciseVolumes.slice(0, 8).map((ev) => {
+                  {overviewSortedExerciseVolumes.slice(0, 8).map((ev) => {
                     const exId = exercises.find((e) => e.name === ev.exerciseName)?.id ?? ''
                     const pct = totalVolume > 0 ? ev.volume / totalVolume : 0
                     const dispVol = toDisplayWeight(ev.volume, weightUnit)
-                    const sessions = sessionCounts.get(exId) ?? 0
+                    const sessions = overviewSessionCounts.get(exId) ?? 0
                     return (
                       <div key={ev.exerciseName} className="flex flex-col gap-0.5">
                         <div className="flex items-center justify-between text-sm">
@@ -430,7 +483,7 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
               {weekly1RMData.some((d) => d.oneRM > 0) && (
                 <Card title={`${exerciseMap.get(selectedExerciseId)?.name ?? ''} — Estimated 1RM Trend`}>
                   <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={weekly1RMData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <BarChart data={weekly1RMData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis
                         dataKey="weekLabel"
@@ -447,16 +500,11 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
                       />
                       <Tooltip
                         formatter={(val: number) => [`${val.toFixed(1)} ${weightUnit}`, 'Est. 1RM']}
+                        cursor={{ fill: gridColor }}
                         contentStyle={tooltipStyle}
                       />
-                      <Line
-                        type="monotone"
-                        dataKey="oneRM"
-                        stroke="#f59e0b"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </LineChart>
+                      <Bar dataKey="oneRM" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </Card>
               )}
@@ -464,7 +512,7 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
               {weeklyPeakData.some((d) => d.peakWeight > 0) && (
                 <Card title={`${exerciseMap.get(selectedExerciseId)?.name ?? ''} — Session Peak Weight`}>
                   <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={weeklyPeakData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <BarChart data={weeklyPeakData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis
                         dataKey="weekLabel"
@@ -481,16 +529,11 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
                       />
                       <Tooltip
                         formatter={(val: number) => [`${val.toFixed(1)} ${weightUnit}`, 'Peak Weight']}
+                        cursor={{ fill: gridColor }}
                         contentStyle={tooltipStyle}
                       />
-                      <Line
-                        type="monotone"
-                        dataKey="peakWeight"
-                        stroke="#8b5cf6"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </LineChart>
+                      <Bar dataKey="peakWeight" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </Card>
               )}
@@ -513,10 +556,12 @@ export function Analytics({ workouts, exercises, weightUnit, bodyweightLbs }: Pr
 
 function StatCards({
   workouts,
+  allWorkouts,
   weightUnit,
   bodyweightLbs,
 }: {
   workouts: Workout[]
+  allWorkouts: Workout[]
   weightUnit: 'lbs' | 'kg'
   bodyweightLbs?: number
 }) {
@@ -526,49 +571,26 @@ function StatCards({
     (s, w) => s + w.exercises.reduce((ss, we) => ss + we.sets.length, 0),
     0
   )
-  const streak = currentStreak(workouts)
-  const longest = longestStreak(workouts)
+  const longest = longestStreak(allWorkouts)
   const avgWeek = avgWorkoutsPerWeek(workouts)
-  const volChange = volumeChangePercent(workouts, bwLbs)
-
-  let volChangeText: string
-  let volChangeClass: string
-  if (volChange === null) {
-    volChangeText = '—'
-    volChangeClass = ''
-  } else if (!isFinite(volChange)) {
-    volChangeText = 'New!'
-    volChangeClass = 'text-green-500 dark:text-green-400'
-  } else if (volChange > 0) {
-    volChangeText = `+${volChange}%`
-    volChangeClass = 'text-green-500 dark:text-green-400'
-  } else if (volChange < 0) {
-    volChangeText = `${volChange}%`
-    volChangeClass = 'text-red-500 dark:text-red-400'
-  } else {
-    volChangeText = '0%'
-    volChangeClass = ''
-  }
+  const avgVolPerSession = workouts.length > 0
+    ? toDisplayWeight(totalVol / workouts.length, weightUnit)
+    : 0
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Workouts" value={workouts.length.toString()} />
-        <StatCard label="Total Sets" value={totalSets.toLocaleString()} />
-        <StatCard
-          label={`Volume (${weightUnit})`}
-          value={(toDisplayWeight(totalVol, weightUnit) / 1000).toFixed(1) + 'k'}
-        />
-        <StatCard label="Streak" value={streak > 0 ? `${streak}d` : '—'} />
-        <StatCard label="Best Streak" value={longest > 0 ? `${longest}d` : '—'} />
-        <StatCard label="Avg/Week" value={avgWeek.toFixed(1)} />
-      </div>
-      <div className="rounded-xl bg-brand-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-900/50 px-4 py-3 flex items-center justify-between">
-        <p className="text-xs text-slate-500 dark:text-zinc-400">This vs Last Week</p>
-        <p className={`text-xl font-bold ${volChangeClass || 'text-brand-700 dark:text-brand-400'}`}>
-          {volChangeText}
-        </p>
-      </div>
+    <div className="grid grid-cols-3 gap-3">
+      <StatCard label="Workouts" value={workouts.length.toString()} />
+      <StatCard label="Total Sets" value={totalSets.toLocaleString()} />
+      <StatCard
+        label={`Volume (${weightUnit})`}
+        value={(toDisplayWeight(totalVol, weightUnit) / 1000).toFixed(1) + 'k'}
+      />
+      <StatCard
+        label={`Avg/Session (${weightUnit})`}
+        value={avgVolPerSession > 0 ? (avgVolPerSession / 1000).toFixed(1) + 'k' : '—'}
+      />
+      <StatCard label="Best Streak" value={longest > 0 ? `${longest}d` : '—'} />
+      <StatCard label="Avg/Week" value={avgWeek.toFixed(1)} />
     </div>
   )
 }

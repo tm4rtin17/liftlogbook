@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: liftlogbook-svc
+  namespace: default
+spec:
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: liftlogbook-svc
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 192.168.200.10
+    ports:
+      - port: 3001
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: liftlogbook-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - liftlogbook.roninlab.dev
+      secretName: liftlogbook-tls
+  rules:
+    - host: liftlogbook.roninlab.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: liftlogbook-svc
+                port:
+                  number: 3001
