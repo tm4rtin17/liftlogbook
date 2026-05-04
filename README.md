@@ -5,7 +5,7 @@ A self-hosted web app for tracking weight-lifting workouts. Log exercises, sets,
 ## Features
 
 - **Workout logging** — build sessions from a library of 60+ built-in exercises, add custom exercises, and log sets with weight and reps
-- **History** — browse past workouts by month, expand for full set details, edit or delete any entry
+- **History** — browse past workouts by week (Mon–Sun) with prev/next week navigation, expand for full set details, edit or delete any entry
 - **Activity heatmap** — 52-week grid in the History view showing workout frequency and volume intensity at a glance
 - **Analytics** — weekly volume charts by muscle group or individual exercise, all-time breakdowns, and personal bests
 - **Personal Records** — dedicated PRs page showing all-time bests per exercise: heaviest weight, most reps, estimated 1RM (Epley formula), and best session volume

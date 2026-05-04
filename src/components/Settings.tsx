@@ -8,6 +8,7 @@ import { Input } from './ui/Input'
 import { Modal } from './ui/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { api } from '../api/client'
 
 interface ImportResult {
   workoutsImported: number
@@ -54,6 +55,33 @@ export function Settings({
   const [pendingColor, setPendingColor] = useState<AccentColor>(settings.accentColor ?? 'sky')
   const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [importMessage, setImportMessage] = useState('')
+  const [pwCurrent, setPwCurrent] = useState('')
+  const [pwNew, setPwNew] = useState('')
+  const [pwConfirm, setPwConfirm] = useState('')
+  const [pwStatus, setPwStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [pwMessage, setPwMessage] = useState('')
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (pwNew !== pwConfirm) {
+      setPwStatus('error')
+      setPwMessage('New passwords do not match')
+      return
+    }
+    setPwStatus('loading')
+    setPwMessage('')
+    try {
+      await api.post('/auth/change-password', { currentPassword: pwCurrent, newPassword: pwNew })
+      setPwStatus('success')
+      setPwMessage('Password updated successfully')
+      setPwCurrent('')
+      setPwNew('')
+      setPwConfirm('')
+    } catch (err) {
+      setPwStatus('error')
+      setPwMessage(err instanceof Error ? err.message : 'Failed to update password')
+    }
+  }
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Bodyweight field — display in the user's chosen unit
@@ -177,6 +205,51 @@ export function Settings({
             Sign out
           </Button>
         </div>
+      </section>
+
+      {/* Change password */}
+      <section className="rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-zinc-800/60 border-b border-slate-100 dark:border-zinc-800">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Change Password</h2>
+        </div>
+        <form onSubmit={handleChangePassword} className="px-4 py-4 flex flex-col gap-3">
+          <Input
+            label="Current password"
+            type="password"
+            value={pwCurrent}
+            onChange={(e) => setPwCurrent(e.target.value)}
+            autoComplete="current-password"
+          />
+          <Input
+            label="New password"
+            type="password"
+            value={pwNew}
+            onChange={(e) => setPwNew(e.target.value)}
+            autoComplete="new-password"
+          />
+          <Input
+            label="Confirm new password"
+            type="password"
+            value={pwConfirm}
+            onChange={(e) => setPwConfirm(e.target.value)}
+            autoComplete="new-password"
+          />
+          {pwStatus === 'success' && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">{pwMessage}</p>
+          )}
+          {pwStatus === 'error' && (
+            <p className="text-xs text-red-500 dark:text-red-400">{pwMessage}</p>
+          )}
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={pwStatus === 'loading' || !pwCurrent || !pwNew || !pwConfirm}
+            >
+              {pwStatus === 'loading' ? 'Saving…' : 'Update password'}
+            </Button>
+          </div>
+        </form>
       </section>
 
       {/* Appearance */}

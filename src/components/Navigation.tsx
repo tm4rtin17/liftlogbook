@@ -2,7 +2,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Logo } from './Logo'
 
-type Tab = 'log' | 'history' | 'analytics' | 'prs' | 'settings'
+type Tab = 'log' | 'analytics' | 'prs' | 'settings' | 'admin'
 
 interface Props {
   activeTab: Tab
@@ -11,7 +11,6 @@ interface Props {
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'log', label: 'Log', icon: '🏋️' },
-  { id: 'history', label: 'History', icon: '📋' },
   { id: 'analytics', label: 'Analytics', icon: '📊' },
   { id: 'prs', label: 'Records', icon: '🏆' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
@@ -20,6 +19,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
 export function Navigation({ activeTab, onTabChange }: Props) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const visibleTabs = user?.isAdmin ? [...tabs, { id: 'admin' as Tab, label: 'Admin', icon: '🛡️' }] : tabs
 
   return (
     <>
@@ -29,7 +29,7 @@ export function Navigation({ activeTab, onTabChange }: Props) {
           <Logo iconSize={32} />
         </div>
 
-        {tabs.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t.id}
             onClick={() => onTabChange(t.id)}
@@ -69,7 +69,7 @@ export function Navigation({ activeTab, onTabChange }: Props) {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex safe-bottom">
-        {tabs.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t.id}
             onClick={() => onTabChange(t.id)}

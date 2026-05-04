@@ -170,6 +170,34 @@ export function avgWorkoutsPerWeek(workouts: Workout[]): number {
   return Math.round((workouts.length / weeks) * 10) / 10
 }
 
+export function consistencyPercent(workouts: Workout[], periodStart?: Date): number {
+  const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date))
+
+  let firstWeek: Date
+  if (periodStart) {
+    firstWeek = startOfWeek(periodStart, { weekStartsOn: 1 })
+  } else if (sorted.length > 0) {
+    firstWeek = startOfWeek(parseISO(sorted[0].date), { weekStartsOn: 1 })
+  } else {
+    return 0
+  }
+
+  const currentWeek = startOfWeek(new Date(), { weekStartsOn: 1 })
+  const totalWeeks = Math.max(
+    1,
+    Math.round((currentWeek.getTime() - firstWeek.getTime()) / (7 * 86400000)) + 1
+  )
+
+  const firstWeekTime = firstWeek.getTime()
+  const activeWeeks = new Set(
+    workouts
+      .filter((w) => parseISO(w.date).getTime() >= firstWeekTime)
+      .map((w) => format(startOfWeek(parseISO(w.date), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
+  ).size
+
+  return Math.round((activeWeeks / totalWeeks) * 100)
+}
+
 export function volumeChangePercent(
   workouts: Workout[],
   userBodyweightLbs = 0

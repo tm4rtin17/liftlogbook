@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- History: replaced month-grouping view with week-based navigation (Mon–Sun); prev/next week buttons page through history
+- Analytics: removed "This vs Last Week" volume change stat card
+- Analytics: replaced "Streak" stat card with "Avg/Session" (average volume per workout session, respects the selected time period filter)
+
 ---
 
 ## [0.5.0] - 2026-04-24

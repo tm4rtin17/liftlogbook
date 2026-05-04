@@ -6,6 +6,7 @@ import workoutRoutes from './routes/workouts'
 import exerciseRoutes from './routes/exercises'
 import settingsRoutes from './routes/settings'
 import backupRoutes from './routes/backup'
+import adminRoutes from './routes/admin'
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
@@ -22,6 +23,7 @@ app.use('/api/workouts', workoutRoutes)
 app.use('/api/exercises', exerciseRoutes)
 app.use('/api/settings', settingsRoutes)
 app.use('/api/backup', backupRoutes)
+app.use('/api/admin', adminRoutes)
 
 // In production, serve the built frontend
 if (process.env.NODE_ENV === 'production') {

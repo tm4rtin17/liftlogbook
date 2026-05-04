@@ -5,12 +5,13 @@ import { History } from './components/History'
 import { Analytics } from './components/Analytics'
 import { PersonalRecords } from './components/PersonalRecords'
 import { Settings } from './components/Settings'
+import { Admin } from './components/Admin'
 import { AuthScreen } from './screens/AuthScreen'
 import { useStore } from './hooks/useStore'
 import { useAuth } from './contexts/AuthContext'
 import { Logo } from './components/Logo'
 
-type Tab = 'log' | 'history' | 'analytics' | 'prs' | 'settings'
+type Tab = 'log' | 'analytics' | 'prs' | 'settings' | 'admin'
 
 function AppShell() {
   const [activeTab, setActiveTab] = useState<Tab>('log')
@@ -51,33 +52,31 @@ function AppShell() {
 
         <main className="flex-1 px-4 pt-2 pb-24 lg:px-8 lg:py-8 max-w-3xl w-full mx-auto">
           {activeTab === 'log' && (
-            <section>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">Log Workout</h2>
-              <WorkoutLogger
-                exercises={exercises}
-                weightUnit={settings.weightUnit}
-                bodyweightLbs={settings.bodyweightLbs}
-                onSave={async (w) => {
-                  await addWorkout(w)
-                  setActiveTab('history')
-                }}
-                onAddCustomExercise={addCustomExercise}
-              />
-            </section>
-          )}
-
-          {activeTab === 'history' && (
-            <section>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">Workout History</h2>
-              <History
-                workouts={workouts}
-                exercises={exercises}
-                weightUnit={settings.weightUnit}
-                bodyweightLbs={settings.bodyweightLbs}
-                onDelete={removeWorkout}
-                onUpdate={updateWorkout}
-                onAddCustomExercise={addCustomExercise}
-              />
+            <section className="flex flex-col gap-8">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">Log Workout</h2>
+                <WorkoutLogger
+                  exercises={exercises}
+                  weightUnit={settings.weightUnit}
+                  bodyweightLbs={settings.bodyweightLbs}
+                  onSave={async (w) => { await addWorkout(w) }}
+                  onAddCustomExercise={addCustomExercise}
+                />
+              </div>
+              {workouts.length > 0 && (
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">History</h2>
+                  <History
+                    workouts={workouts}
+                    exercises={exercises}
+                    weightUnit={settings.weightUnit}
+                    bodyweightLbs={settings.bodyweightLbs}
+                    onDelete={removeWorkout}
+                    onUpdate={updateWorkout}
+                    onAddCustomExercise={addCustomExercise}
+                  />
+                </div>
+              )}
             </section>
           )}
 
@@ -117,6 +116,13 @@ function AppShell() {
                 onDeleteCustomExercise={removeCustomExercise}
                 onImportBackup={importBackup}
               />
+            </section>
+          )}
+
+          {activeTab === 'admin' && (
+            <section>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">Admin</h2>
+              <Admin />
             </section>
           )}
         </main>
