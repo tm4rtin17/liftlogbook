@@ -9,9 +9,11 @@ server/dist/
 # Database (contains real user data — never commit this)
 data/
 
-# But explicitly allow the source data folder that the app needs
+# But explicitly allow the source data folders that the app needs
 !src/data/
-!src/data/**          
+!src/data/**
+!server/src/data/
+!server/src/data/**
 
 # Environment / secrets
 .env
