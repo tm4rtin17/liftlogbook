@@ -8,6 +8,8 @@ import settingsRoutes from './routes/settings'
 import backupRoutes from './routes/backup'
 import adminRoutes from './routes/admin'
 import externalRoutes from './routes/external'
+import apiKeyRoutes from './routes/apiKeys'
+import { openApiSpec } from './openapi'
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
@@ -26,6 +28,10 @@ app.use('/api/settings', settingsRoutes)
 app.use('/api/backup', backupRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/external', externalRoutes)
+app.use('/api/keys', apiKeyRoutes)
+
+// Served to Swagger UI on the in-app API Docs page; documents /api/external only.
+app.get('/api/openapi.json', (_req, res) => res.json(openApiSpec))
 
 // In production, serve the built frontend
 if (process.env.NODE_ENV === 'production') {

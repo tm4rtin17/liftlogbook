@@ -38,3 +38,35 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+/*
+ * Swagger UI (API Docs tab) ships its own light-mode-only stylesheet. These
+ * overrides retint it to match the app's slate/zinc dark theme instead of
+ * doing a full reskin — scoped to .llb-swagger so nothing else is touched.
+ */
+.llb-swagger .swagger-ui {
+  font-family: inherit;
+}
+
+.dark .llb-swagger .swagger-ui {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.dark .llb-swagger .swagger-ui .microlight,
+.dark .llb-swagger .swagger-ui img,
+.dark .llb-swagger .swagger-ui .model-box-control:focus,
+.dark .llb-swagger .swagger-ui .opblock-summary-control:focus,
+.dark .llb-swagger .swagger-ui .tab-header .tab-item:focus,
+.dark .llb-swagger .swagger-ui svg:not(:root) {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.llb-swagger .swagger-ui .topbar,
+.llb-swagger .swagger-ui .information-container {
+  display: none;
+}
+
+.llb-swagger .swagger-ui .scheme-container {
+  box-shadow: none;
+  padding: 1rem 0 0;
+}

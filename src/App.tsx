@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Navigation } from './components/Navigation'
 import { WorkoutLogger } from './components/WorkoutLogger'
 import { History } from './components/History'
@@ -11,7 +11,12 @@ import { useStore } from './hooks/useStore'
 import { useAuth } from './contexts/AuthContext'
 import { Logo } from './components/Logo'
 
-type Tab = 'log' | 'analytics' | 'prs' | 'settings' | 'admin'
+type Tab = 'log' | 'analytics' | 'prs' | 'api' | 'settings' | 'admin'
+
+// Swagger UI alone is ~500kB gzipped — code-split it behind the API tab so
+// every other page load stays light on the Pi's serving bandwidth and the
+// client's parse time.
+const ApiDocs = lazy(() => import('./components/ApiDocs').then((m) => ({ default: m.ApiDocs })))
 
 function AppShell() {
   const [activeTab, setActiveTab] = useState<Tab>('log')
@@ -104,6 +109,25 @@ function AppShell() {
             </section>
           )}
 
+          {activeTab === 'api' && (
+            <section>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className="text-sm text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors mb-2"
+              >
+                ← Settings
+              </button>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">
+                API Keys & Docs
+              </h2>
+              <Suspense
+                fallback={<p className="text-sm text-slate-400 dark:text-zinc-500">Loading…</p>}
+              >
+                <ApiDocs />
+              </Suspense>
+            </section>
+          )}
+
           {activeTab === 'settings' && (
             <section>
               <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-4">Settings</h2>
@@ -115,6 +139,7 @@ function AppShell() {
                 onAddCustomExercise={addCustomExercise}
                 onDeleteCustomExercise={removeCustomExercise}
                 onImportBackup={importBackup}
+                onOpenApiDocs={() => setActiveTab('api')}
               />
             </section>
           )}

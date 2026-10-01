@@ -23,6 +23,7 @@ interface Props {
   onAddCustomExercise: (name: string, group: MuscleGroup) => Promise<Exercise>
   onDeleteCustomExercise: (id: string) => Promise<void>
   onImportBackup: (backup: unknown) => Promise<ImportResult>
+  onOpenApiDocs: () => void
 }
 
 function triggerDownload(content: string, filename: string, type: string) {
@@ -45,6 +46,7 @@ export function Settings({
   onAddCustomExercise,
   onDeleteCustomExercise,
   onImportBackup,
+  onOpenApiDocs,
 }: Props) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -480,6 +482,25 @@ export function Settings({
             )}
           </div>
         </div>
+      </section>
+
+      {/* Developer */}
+      <section className="rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-zinc-800/60 border-b border-slate-100 dark:border-zinc-800">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Developer</h2>
+        </div>
+        <button
+          onClick={onOpenApiDocs}
+          className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors"
+        >
+          <div>
+            <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">API Keys & Docs</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">
+              Generate API keys and explore the interactive API docs.
+            </p>
+          </div>
+          <span className="text-slate-300 dark:text-zinc-600 text-lg shrink-0">→</span>
+        </button>
       </section>
 
       {/* New exercise modal */}

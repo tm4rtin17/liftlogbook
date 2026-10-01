@@ -2,7 +2,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Logo } from './Logo'
 
-type Tab = 'log' | 'analytics' | 'prs' | 'settings' | 'admin'
+type Tab = 'log' | 'analytics' | 'prs' | 'api' | 'settings' | 'admin'
 
 interface Props {
   activeTab: Tab

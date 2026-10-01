@@ -8,8 +8,6 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in a .env file (see README)}
       NODE_ENV: production
-      API_TOKEN: ${API_TOKEN:-}
-      API_TOKEN_USER_EMAIL: ${API_TOKEN_USER_EMAIL:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
