@@ -10,6 +10,8 @@ import adminRoutes from './routes/admin'
 import externalRoutes from './routes/external'
 import apiKeyRoutes from './routes/apiKeys'
 import { openApiSpec } from './openapi'
+import { apiGuideMarkdown } from './apiGuide'
+import { buildDocsMarkdown } from './docsMarkdown'
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
@@ -32,6 +34,16 @@ app.use('/api/keys', apiKeyRoutes)
 
 // Served to Swagger UI on the in-app API Docs page; documents /api/external only.
 app.get('/api/openapi.json', (_req, res) => res.json(openApiSpec))
+
+// Public, human/AI-readable docs: guide + generated endpoint reference.
+// ?part=guide returns only the guide (rendered on the in-app Guide tab).
+app.get('/api/docs.md', (req, res) => {
+  // Behind Traefik/Cloudflare the original scheme arrives in X-Forwarded-Proto.
+  const proto = req.get('x-forwarded-proto')?.split(',')[0] ?? req.protocol
+  const baseUrl = `${proto}://${req.get('host')}`
+  const body = req.query.part === 'guide' ? apiGuideMarkdown(baseUrl) : buildDocsMarkdown(baseUrl)
+  res.type('text/markdown; charset=utf-8').send(body)
+})
 
 // In production, serve the built frontend
 if (process.env.NODE_ENV === 'production') {

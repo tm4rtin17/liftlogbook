@@ -70,3 +70,57 @@
   box-shadow: none;
   padding: 1rem 0 0;
 }
+
+/*
+ * Rendered Markdown for the API Guide tab (marked → HTML). Hand-rolled instead
+ * of @tailwindcss/typography to keep dependencies minimal.
+ */
+.llb-prose {
+  @apply text-sm leading-relaxed text-slate-600 dark:text-zinc-400;
+}
+.llb-prose > * + * {
+  @apply mt-3;
+}
+.llb-prose h1 {
+  @apply text-lg font-bold text-slate-800 dark:text-zinc-100;
+}
+.llb-prose h2 {
+  @apply mt-8 pt-4 border-t border-slate-100 dark:border-zinc-800 text-base font-semibold text-slate-800 dark:text-zinc-100;
+}
+.llb-prose h3 {
+  @apply mt-5 text-sm font-semibold text-slate-700 dark:text-zinc-200;
+}
+.llb-prose strong {
+  @apply font-semibold text-slate-700 dark:text-zinc-200;
+}
+.llb-prose a {
+  @apply text-brand-600 dark:text-brand-400 underline underline-offset-2;
+}
+.llb-prose ul {
+  @apply list-disc pl-5 space-y-1;
+}
+.llb-prose ol {
+  @apply list-decimal pl-5 space-y-1;
+}
+.llb-prose li > p {
+  @apply mt-0;
+}
+.llb-prose code {
+  @apply font-mono text-[0.8em] px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 break-words;
+}
+.llb-prose pre {
+  @apply overflow-x-auto rounded-lg px-3 py-2.5 bg-slate-100 dark:bg-zinc-800 text-xs leading-snug;
+}
+.llb-prose pre code {
+  @apply p-0 bg-transparent text-[1em] break-normal;
+}
+.llb-prose table {
+  @apply block w-full overflow-x-auto text-xs border-collapse;
+}
+.llb-prose th,
+.llb-prose td {
+  @apply border border-slate-200 dark:border-zinc-700 px-2 py-1.5 text-left align-top;
+}
+.llb-prose th {
+  @apply font-semibold bg-slate-50 dark:bg-zinc-800/60 text-slate-700 dark:text-zinc-300;
+}

@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-import SwaggerUI from 'swagger-ui-react'
-import 'swagger-ui-react/swagger-ui.css'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { marked } from 'marked'
 import { api } from '../api/client'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
@@ -17,6 +16,12 @@ interface ApiKey {
 interface CreatedApiKey extends ApiKey {
   key: string
 }
+
+const ApiReference = lazy(() =>
+  import('./ApiReference').then((m) => ({ default: m.ApiReference }))
+)
+
+type DocsTab = 'guide' | 'reference'
 
 function formatDate(iso: string | null): string {
   if (!iso) return 'Never'
@@ -41,6 +46,11 @@ export function ApiDocs() {
 
   const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null)
 
+  const [docsTab, setDocsTab] = useState<DocsTab>('guide')
+  const [guideHtml, setGuideHtml] = useState<string | null>(null)
+  const [guideError, setGuideError] = useState('')
+  const [docsCopied, setDocsCopied] = useState(false)
+
   async function loadKeys() {
     try {
       const data = await api.get<ApiKey[]>('/keys')
@@ -54,7 +64,30 @@ export function ApiDocs() {
 
   useEffect(() => {
     loadKeys()
+    // Guide markdown is static server content (server/src/apiGuide.ts), so
+    // rendering it as HTML is safe. Plain fetch: the api client is JSON-only.
+    fetch('/api/docs.md?part=guide')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.text()
+      })
+      .then((md) => setGuideHtml(marked.parse(md, { async: false })))
+      .catch(() => setGuideError('Failed to load the API guide'))
   }, [])
+
+  async function handleCopyDocs() {
+    try {
+      const res = await fetch('/api/docs.md')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      await navigator.clipboard.writeText(await res.text())
+      setDocsCopied(true)
+      setTimeout(() => setDocsCopied(false), 2000)
+    } catch {
+      // Clipboard API unavailable (insecure context) or fetch failed — fall
+      // back to opening the raw Markdown so it can be copied by hand.
+      window.open('/api/docs.md', '_blank', 'noopener')
+    }
+  }
 
   async function handleCreate() {
     if (!newName.trim()) return
@@ -149,18 +182,65 @@ export function ApiDocs() {
         )}
       </section>
 
-      {/* Interactive docs */}
+      {/* Docs: human-readable guide + interactive reference */}
       <section className="rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900">
         <div className="px-4 py-3 bg-slate-50 dark:bg-zinc-800/60 border-b border-slate-100 dark:border-zinc-800">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Interactive Docs</h2>
-          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">
-            Click <span className="font-mono">Authorize</span> below and paste an API key to try
-            requests against your own data.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Docs</h2>
+              <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">
+                {docsTab === 'guide' ? (
+                  <>
+                    How the API works. Copy the full docs as{' '}
+                    <a href="/api/docs.md" target="_blank" rel="noopener" className="underline hover:text-slate-600 dark:hover:text-zinc-300">
+                      Markdown
+                    </a>{' '}
+                    to share them anywhere.
+                  </>
+                ) : (
+                  <>
+                    Click <span className="font-mono">Authorize</span> below and paste an API key to
+                    try requests against your own data.
+                  </>
+                )}
+              </p>
+            </div>
+            <Button size="sm" variant="secondary" onClick={handleCopyDocs} className="shrink-0">
+              {docsCopied ? 'Copied!' : 'Copy as Markdown'}
+            </Button>
+          </div>
+          <div className="mt-3 inline-flex rounded-lg bg-slate-100 dark:bg-zinc-800 p-0.5">
+            {(['guide', 'reference'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setDocsTab(t)}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  docsTab === t
+                    ? 'bg-white dark:bg-zinc-700 text-slate-700 dark:text-zinc-100 shadow-sm'
+                    : 'text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300'
+                }`}
+              >
+                {t === 'guide' ? 'Guide' : 'Reference'}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="llb-swagger">
-          <SwaggerUI url="/api/openapi.json" docExpansion="list" defaultModelsExpandDepth={-1} />
-        </div>
+
+        {docsTab === 'guide' ? (
+          guideError ? (
+            <p className="px-4 py-6 text-sm text-red-500 dark:text-red-400 text-center">{guideError}</p>
+          ) : guideHtml == null ? (
+            <p className="px-4 py-6 text-sm text-slate-400 dark:text-zinc-500 text-center">Loading…</p>
+          ) : (
+            <article className="llb-prose px-4 py-4" dangerouslySetInnerHTML={{ __html: guideHtml }} />
+          )
+        ) : (
+          <Suspense
+            fallback={<p className="px-4 py-6 text-sm text-slate-400 dark:text-zinc-500 text-center">Loading…</p>}
+          >
+            <ApiReference />
+          </Suspense>
+        )}
       </section>
 
       {/* Create key */}

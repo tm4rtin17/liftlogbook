@@ -13,9 +13,9 @@ import { Logo } from './components/Logo'
 
 type Tab = 'log' | 'analytics' | 'prs' | 'api' | 'settings' | 'admin'
 
-// Swagger UI alone is ~500kB gzipped — code-split it behind the API tab so
-// every other page load stays light on the Pi's serving bandwidth and the
-// client's parse time.
+// Code-split the API tab (marked + guide) so every other page load stays light
+// on the Pi's serving bandwidth and the client's parse time. Swagger UI (~500kB
+// gzipped) is split again inside ApiDocs, behind its Reference sub-tab.
 const ApiDocs = lazy(() => import('./components/ApiDocs').then((m) => ({ default: m.ApiDocs })))
 
 function AppShell() {

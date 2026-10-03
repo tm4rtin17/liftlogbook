@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- API Docs: new **Guide** tab with human-readable docs (auth, data model, units/bodyweight math, how PRs/volume/streaks are computed, filtering, errors, common tasks)
+- API Docs: **Copy as Markdown** button; full docs (guide + generated endpoint/schema reference) served publicly at `GET /api/docs.md`
+
+### Changed
+- API Docs: Swagger UI moved to a **Reference** tab and code-split so it only loads when opened
+
+### Fixed
+- OpenAPI spec now matches actual responses: `PersonalRecord` fields, `AnalyticsSummary` volume arrays, set/exercise `id` and `isBodyweight` fields, `401` responses on every endpoint
+
+---
+
 ## [0.6.0] - 2026-05-03
 
 ### Changed
